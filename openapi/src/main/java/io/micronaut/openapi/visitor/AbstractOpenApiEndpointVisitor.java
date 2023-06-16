@@ -1735,6 +1735,13 @@ public abstract class AbstractOpenApiEndpointVisitor extends AbstractOpenApiVisi
         if (CollectionUtils.isNotEmpty(groupAnnotations)) {
             AnnotationValue<OpenAPIGroup> annotationValue = groupAnnotations.get(0);
             groups = Arrays.asList(annotationValue.stringValues("value"));
+            Set<String> allKnownGroups = Utils.getAllKnownGroups();
+            if (allKnownGroups == null) {
+                allKnownGroups = new HashSet<>();
+                Utils.setAllKnownGroups(allKnownGroups);
+            }
+            allKnownGroups.addAll(groups);
+
             excludedGroups = Arrays.asList(annotationValue.stringValues("excluded"));
         }
 
@@ -1788,10 +1795,10 @@ public abstract class AbstractOpenApiEndpointVisitor extends AbstractOpenApiVisi
 
         for (String parameterName : names) {
             Parameter parameter = new Parameter();
-            parameter.setIn(in);
-            parameter.setDescription("API version");
-            parameter.setName(parameterName);
-            parameter.setSchema(PrimitiveType.STRING.createProperty());
+            parameter.in(in)
+                .description("API version")
+                .name(parameterName)
+                .schema(PrimitiveType.STRING.createProperty());
 
             swaggerOperation.addParametersItem(parameter);
         }
