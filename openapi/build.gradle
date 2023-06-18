@@ -7,11 +7,11 @@ dependencies {
 
     implementation(mn.micronaut.http)
 
+    api(projects.openapiAnnotations)
     api(libs.jackson.databind)
     api(libs.jackson.dataformat.yaml)
     api(libs.jackson.datatype.jsr310)
     api(libs.managed.swagger.models)
-    api(libs.managed.swagger.annotations)
     api(libs.managed.javadoc.parser)
     api(libs.managed.html2md.converter) {
         exclude group: "org.jetbrains", module: "annotations"

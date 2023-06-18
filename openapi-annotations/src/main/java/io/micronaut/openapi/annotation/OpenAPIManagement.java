@@ -15,68 +15,25 @@
  */
 package io.micronaut.openapi.annotation;
 
-import io.micronaut.context.annotation.AliasFor;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-import io.swagger.v3.oas.annotations.tags.Tag;
-
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
-import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
+
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 /**
- * The annotation can be used to include additional io.micronaut.http.annotation.Controller or
- * io.micronaut.management.endpoint.annotation.Endpoint classes to be processed for OpenAPI definition.
- * This is useful in cases where you cannot alter the source code and wish to generate Open API for already compiled classes.
+ * The annotation to include Micronaut management endpoints.
  *
  * @author Denis Stepanov
  */
-@Repeatable(OpenAPIIncludes.class)
-@Retention(RUNTIME)
 @Documented
+@Retention(RUNTIME)
 @Target({ElementType.TYPE, ElementType.ANNOTATION_TYPE})
-public @interface OpenAPIInclude {
-
-    /**
-     * @return The classes to generate Open API for.
-     */
-    Class<?>[] value() default {};
-
-    /**
-     * @return The classes to generate Open API for.
-     */
-    @AliasFor(member = "value")
-    Class<?>[] classes() default {};
-
-    /**
-     * @return The classes to generate Open API for.
-     */
-    @AliasFor(member = "value")
-    String[] classNames() default {};
-
-    /**
-     * @return Array of groups to which this controller should be included.
-     *
-     * @since 4.9.2
-     */
-    String[] groups() default {};
-
-    /**
-     * @return Array of groups to which this controller should not be included.
-     *
-     * @since 4.9.2
-     */
-    String[] groupsExcluded() default {};
-
-    /**
-     * @return Custom URI for controller
-     *
-     * @since 4.4.0
-     */
-    String uri() default "";
+public @interface OpenAPIManagement {
 
     /**
      * A list of tags used by the specification with additional metadata.
@@ -92,4 +49,5 @@ public @interface OpenAPIInclude {
      * @return the array of servers used for this API
      */
     SecurityRequirement[] security() default {};
+
 }

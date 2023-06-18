@@ -15,25 +15,25 @@
  */
 package io.micronaut.openapi.annotation;
 
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-import io.swagger.v3.oas.annotations.tags.Tag;
-
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 /**
- * The annotation to include Micronaut management endpoints.
+ * The annotation to include Micronaut security endpoints.
  *
  * @author Denis Stepanov
  */
 @Documented
 @Retention(RUNTIME)
 @Target({ElementType.TYPE, ElementType.ANNOTATION_TYPE})
-public @interface OpenAPIManagement {
+public @interface OpenAPISecurity {
 
     /**
      * A list of tags used by the specification with additional metadata.

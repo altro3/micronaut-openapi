@@ -7,13 +7,16 @@ repositories {
 }
 
 dependencies {
-    testImplementation(platform(mn.micronaut.bom))
 
-    testImplementation projects.openapi
+    testAnnotationProcessor(platform(mn.micronaut.bom))
+    testAnnotationProcessor(projects.openapi)
+
+    testCompileOnly(projects.openapiAnnotations)
+
+    testImplementation(platform(mn.micronaut.bom))
     testImplementation(mn.micronaut.runtime)
     testImplementation(mn.micronaut.inject.java)
     testImplementation(mn.micronaut.validation)
-    testImplementation(libs.managed.swagger.annotations)
     testImplementation(libs.reactor.core)
     testImplementation(mn.micronaut.hibernate.validator)
     testImplementation(libs.junit.jupiter.api)

@@ -14,6 +14,11 @@ dependencies {
 
     kaptTest(mn.micronaut.inject.java)
 
+    kaptTest(platform(mn.micronaut.bom))
+    kaptTest(projects.openapi)
+
+    testCompileOnly(projects.openapiAnnotations)
+
     testImplementation(platform(mn.micronaut.bom))
     testImplementation(libs.managed.swagger.annotations)
     testImplementation(libs.reactor.core)
