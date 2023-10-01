@@ -345,7 +345,7 @@ abstract class AbstractOpenApiVisitor {
             finalPaths.put(-1, resultPath);
             if (CollectionUtils.isNotEmpty(matchTemplate.getVariables())) {
                 List<String> optionalVars = new ArrayList<>();
-                // need check not required path varibales
+                // need check not required path variables
                 for (UriMatchVariable var : matchTemplate.getVariables()) {
                     if (var.isQuery() || !var.isOptional() || var.isExploded()) {
                         continue;
@@ -705,7 +705,7 @@ abstract class AbstractOpenApiVisitor {
 
     private Map<CharSequence, Object> resolveAnnotationValues(VisitorContext context, AnnotationValue<?> av, @Nullable ClassElement jsonViewClass) {
         final Map<CharSequence, Object> valueMap = toValueMap(av.getValues(), context, jsonViewClass);
-        bindSchemaIfNeccessary(context, av, valueMap, jsonViewClass);
+        bindSchemaIfNecessary(context, av, valueMap, jsonViewClass);
         final String annotationName = av.getAnnotationName();
         if (Parameter.class.getName().equals(annotationName)) {
             Utils.normalizeEnumValues(valueMap, CollectionUtils.mapOf(
@@ -955,7 +955,7 @@ abstract class AbstractOpenApiVisitor {
             if (schema != null) {
 
                 if (isSubstitudedType) {
-                    processShemaAnn(schema, context, definingElement, type, schemaAnnotationValue);
+                    processSchemaAnn(schema, context, definingElement, type, schemaAnnotationValue);
                 }
 
                 if (definingElement != null && StringUtils.isEmpty(schema.getDescription())) {
@@ -1055,7 +1055,7 @@ abstract class AbstractOpenApiVisitor {
                 }
             }
 
-            // check field annotaions (@NonNull, @Nullable, etc.)
+            // check field annotations (@NonNull, @Nullable, etc.)
             boolean isNotNullable = isElementNotNullable(element, classElement);
             // check as mandatory in constructor
             boolean isMandatoryInConstructor = doesParamExistsMandatoryInConstructor(element, classElement);
@@ -1454,12 +1454,12 @@ abstract class AbstractOpenApiVisitor {
         }
 
         var schemaToBind = new Schema<>();
-        processShemaAnn(schemaToBind, context, element, type, schemaAnn);
+        processSchemaAnn(schemaToBind, context, element, type, schemaAnn);
 
         return schemaToBind;
     }
 
-    void processShemaAnn(Schema<?> schemaToBind, VisitorContext context, Element element, ClassElement type, @NonNull AnnotationValue<io.swagger.v3.oas.annotations.media.Schema> schemaAnn) {
+    void processSchemaAnn(Schema<?> schemaToBind, VisitorContext context, Element element, ClassElement type, @NonNull AnnotationValue<io.swagger.v3.oas.annotations.media.Schema> schemaAnn) {
 
         Map<CharSequence, Object> annValues = schemaAnn.getValues();
         if (annValues.containsKey("description")) {
@@ -1648,7 +1648,7 @@ abstract class AbstractOpenApiVisitor {
             allowableValues = schemaAnn.get("allowableValues", String[].class).orElse(null);
             Map<CharSequence, Object> annValues = schemaAnn.getValues();
             Map<CharSequence, Object> valueMap = toValueMap(annValues, context, jsonViewClass);
-            bindSchemaIfNeccessary(context, schemaAnn, valueMap, jsonViewClass);
+            bindSchemaIfNecessary(context, schemaAnn, valueMap, jsonViewClass);
             processClassValues(schemaToBind, annValues, Collections.emptyList(), context, jsonViewClass);
         }
 
@@ -1757,7 +1757,7 @@ abstract class AbstractOpenApiVisitor {
         }
     }
 
-    private void bindSchemaIfNeccessary(VisitorContext context, AnnotationValue<?> av, Map<CharSequence, Object> valueMap, @Nullable ClassElement jsonViewClass) {
+    private void bindSchemaIfNecessary(VisitorContext context, AnnotationValue<?> av, Map<CharSequence, Object> valueMap, @Nullable ClassElement jsonViewClass) {
         final Optional<String> impl = av.stringValue("implementation");
         final Optional<String> not = av.stringValue("not");
         final Optional<String> schema = av.stringValue("schema");
@@ -1844,7 +1844,7 @@ abstract class AbstractOpenApiVisitor {
                                        @Nullable ClassElement jsonViewClass
                                        ) {
 
-        // Here we need to skip Schema nnotation on field level, because with micronaut 3.x method getDeclaredAnnotation
+        // Here we need to skip Schema annotation on field level, because with micronaut 3.x method getDeclaredAnnotation
         // returned always null and found Schema annotation only on getters and setters
         AnnotationValue<io.swagger.v3.oas.annotations.media.Schema> schemaValue = null;
         if (definingElement != null) {
@@ -2433,7 +2433,7 @@ abstract class AbstractOpenApiVisitor {
                 continue;
             }
 
-            var isGetterOverriden = false;
+            var isGetterOverridden = false;
             JavadocDescription fieldJavadoc = null;
             if (classElement != null) {
                 for (FieldElement field : classElement.getFields()) {
@@ -2450,7 +2450,7 @@ abstract class AbstractOpenApiVisitor {
                         var methods = classElement.getEnclosedElements(ElementQuery.ALL_METHODS.includeOverriddenMethods());
                         for (var method : methods) {
                             if (readerMethod.overrides(method)) {
-                                isGetterOverriden = CollectionUtils.isNotEmpty(readerMethod.getAnnotationNames()) || fieldJavadoc != null;
+                                isGetterOverridden = CollectionUtils.isNotEmpty(readerMethod.getAnnotationNames()) || fieldJavadoc != null;
                                 break;
                             }
                         }
@@ -2458,7 +2458,7 @@ abstract class AbstractOpenApiVisitor {
                 }
             }
 
-            if (publicField instanceof MemberElement memberEl && (memberEl.getDeclaringType().getType().getName().equals(type.getName()) || isGetterOverriden)) {
+            if (publicField instanceof MemberElement memberEl && (memberEl.getDeclaringType().getType().getName().equals(type.getName()) || isGetterOverridden)) {
 
                 ClassElement fieldType = publicField.getType();
                 if (publicField.getType() instanceof GenericPlaceholderElement genericPlaceholderEl) {

@@ -101,11 +101,6 @@ import static io.micronaut.openapi.visitor.FileUtils.resolve;
 import static io.micronaut.openapi.visitor.OpenApiConfigProperty.ALL;
 import static io.micronaut.openapi.visitor.OpenApiConfigProperty.MICRONAUT_OPENAPI_ADDITIONAL_FILES;
 import static io.micronaut.openapi.visitor.OpenApiConfigProperty.MICRONAUT_OPENAPI_ADOC_ENABLED;
-import static io.micronaut.openapi.visitor.OpenApiConfigProperty.MICRONAUT_OPENAPI_ADOC_OPENAPI_PATH;
-import static io.micronaut.openapi.visitor.OpenApiConfigProperty.MICRONAUT_OPENAPI_ADOC_OUTPUT_DIR_PATH;
-import static io.micronaut.openapi.visitor.OpenApiConfigProperty.MICRONAUT_OPENAPI_ADOC_OUTPUT_FILENAME;
-import static io.micronaut.openapi.visitor.OpenApiConfigProperty.MICRONAUT_OPENAPI_ADOC_TEMPLATES_DIR_PATH;
-import static io.micronaut.openapi.visitor.OpenApiConfigProperty.MICRONAUT_OPENAPI_ADOC_TEMPLATE_FILENAME;
 import static io.micronaut.openapi.visitor.OpenApiConfigProperty.MICRONAUT_OPENAPI_CONTEXT_SERVER_PATH;
 import static io.micronaut.openapi.visitor.OpenApiConfigProperty.MICRONAUT_OPENAPI_FILENAME;
 import static io.micronaut.openapi.visitor.OpenApiConfigProperty.MICRONAUT_OPENAPI_JSON_FORMAT;
@@ -514,7 +509,7 @@ public class OpenApiApplicationVisitor extends AbstractOpenApiVisitor implements
                     }
                 }
 
-                // contruct filename for group
+                // construct filename for group
                 if (openApiInfos.size() > 1) {
                     if (StringUtils.isNotEmpty(openApiInfo.getFilename())) {
                         fileName = openApiInfo.getFilename();
@@ -621,7 +616,7 @@ public class OpenApiApplicationVisitor extends AbstractOpenApiVisitor implements
             paths = new io.swagger.v3.oas.models.Paths();
             openApi.setPaths(paths);
         }
-        PathItem pathItem = paths.computeIfAbsent(endpointInfo.getUrl(), (pathurl) -> new PathItem());
+        PathItem pathItem = paths.computeIfAbsent(endpointInfo.getUrl(), (pathUrl) -> new PathItem());
         Operation operation = getOperationOnPathItem(pathItem, endpointInfo.getHttpMethod());
         if (operation == null) {
             setOperationOnPathItem(pathItem, endpointInfo.getHttpMethod(), endpointInfo.getOperation());
@@ -1064,7 +1059,7 @@ public class OpenApiApplicationVisitor extends AbstractOpenApiVisitor implements
                     && StringUtils.isNotEmpty(schemaAllOf.getDescription())) {
                     schemaAllOf.setDescription(null);
                 }
-                // remove deplicate default field
+                // remove duplicate default field
                 if (schema.getDefault() != null
                     && schemaAllOf.getDefault() != null && schema.getDefault().equals(schemaAllOf.getDefault())) {
                     schema.setDefault(null);
@@ -1126,21 +1121,28 @@ public class OpenApiApplicationVisitor extends AbstractOpenApiVisitor implements
     private void writeYamlToFile(Map<Pair<String, String>, OpenApiInfo> openApiInfos, String documentTitle, VisitorContext context, boolean isYaml) {
 
         Path viewsDestDirs = null;
-        AdocModule adocModule = null;
+        var isAdocModuleInClassPath = false;
+        var isAdocEnabled = getBooleanProperty(MICRONAUT_OPENAPI_ADOC_ENABLED, false, context);
         Map<String, String> adocProperties = null;
 
-        if (!Utils.isTestMode() && getBooleanProperty(MICRONAUT_OPENAPI_ADOC_ENABLED, false, context)) {
-            Class<?> converterClass = null;
+        if (!Utils.isTestMode() && isAdocEnabled) {
             try {
-                converterClass = Class.forName("io.micronaut.openapi.adoc.OpenApiToAdocConverter");
+                var converterClass = Class.forName("io.micronaut.openapi.adoc.OpenApiToAdocConverter");
+                isAdocModuleInClassPath = true;
             } catch (ClassNotFoundException e) {
                 //
             }
-            if (converterClass != null) {
-                adocModule = new AdocModule();
-            }
 
-            adocProperties = getAdocProperties(context);
+            if (isAdocModuleInClassPath) {
+                adocProperties = getAdocProperties(context);
+            } else {
+                context.warn("""
+                    You enabled conversion to adoc, but didn't add micronaut-openapi-adoc module to annotationProcessor classpath.
+                    Just add this dependency to annotationProcessorClassPath like that (gradle example):
+
+                    annotationProcessor "io.micronaut.openapi:micronaut-openapi-adoc"
+                    """, null);
+            }
         }
 
         for (OpenApiInfo openApiInfo : openApiInfos.values()) {
@@ -1170,8 +1172,8 @@ public class OpenApiApplicationVisitor extends AbstractOpenApiVisitor implements
                     });
                     openApiInfo.setSpecFilePath(specPath.getFileName().toString());
 
-                    if (adocModule != null) {
-                        adocModule.convert(openApiInfo, adocProperties, context);
+                    if (isAdocModuleInClassPath) {
+                        AdocModule.convert(openApiInfo, adocProperties, context);
                     }
                 }
             } catch (Exception e) {

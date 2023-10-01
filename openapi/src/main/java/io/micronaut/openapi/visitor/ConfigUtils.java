@@ -249,7 +249,7 @@ public final class ConfigUtils {
 
         List<Pair<String, String>> expandableProperties = new ArrayList<>();
 
-        // first, check system properties and environmets config files
+        // first, check system properties and environments config files
         AnnProcessorEnvironment env = (AnnProcessorEnvironment) getEnv(context);
         Map<String, Object> propertiesFromEnv = null;
         if (env != null) {
@@ -314,7 +314,7 @@ public final class ConfigUtils {
         adocProperties.put(MICRONAUT_OPENAPI_ADOC_OUTPUT_FILENAME, getConfigProperty(MICRONAUT_OPENAPI_ADOC_OUTPUT_FILENAME, context));
         adocProperties.put(MICRONAUT_OPENAPI_ADOC_OPENAPI_PATH, getConfigProperty(MICRONAUT_OPENAPI_ADOC_OPENAPI_PATH, context));
 
-        // first, check system properties and environmets config files
+        // first, check system properties and environments config files
         var env = (AnnProcessorEnvironment) getEnv(context);
         Map<String, Object> propertiesFromEnv = null;
         if (env != null) {
@@ -388,7 +388,7 @@ public final class ConfigUtils {
             return securityProperties;
         }
 
-        // load micronaut security properies
+        // load micronaut security properties
         Environment environment = getEnv(context);
         List<InterceptUrlMapPattern> interceptUrlMapPatterns;
         if (environment != null) {

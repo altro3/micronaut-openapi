@@ -113,7 +113,7 @@ public final class GroupProperties {
     }
 
     /**
-     * Package name with inclusion subpackasges flag.
+     * Package name with inclusion subpackages flag.
      *
      * @since 4.10.0
      */

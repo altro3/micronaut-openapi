@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import io.micronaut.openapi.OpenApiUtils;
+import io.micronaut.openapi.adoc.md.MdToAdocConverter;
 import io.micronaut.openapi.adoc.utils.SwaggerUtils;
 import io.swagger.v3.oas.models.OpenAPI;
 
@@ -71,7 +72,7 @@ public final class OpenApiToAdocConverter {
     }
 
     /**
-     * Convertion from openAPI format to asciidoc format.
+     * Conversion from openAPI format to asciidoc format.
      *
      * @throws TemplateException som problems with freemarker templates
      * @throws IOException some problems with files
@@ -111,6 +112,8 @@ public final class OpenApiToAdocConverter {
      * @throws IOException some problems with files
      */
     public static void convert(OpenAPI openApi, Map props, Writer writer) throws TemplateException, IOException {
+
+        MdToAdocConverter.convert(openApi);
 
         var model = new HashMap<String, Object>();
         model.put("info", openApi.getInfo());
@@ -164,7 +167,8 @@ public final class OpenApiToAdocConverter {
         if (customTemplatesDirs != null && customTemplatesDirs.length > 0) {
             var templateLoaders = new ArrayList<TemplateLoader>();
             for (var templateDir : customTemplatesDirs) {
-                templateDir = templateDir.strip();
+                templateDir = templateDir.strip()
+                    .replace("\\", "/");
                 if (templateDir.startsWith(CLASSPATH_SCHEME)) {
                     templateLoaders.add(new ClassTemplateLoader(OpenApiToAdocConverter.class, templateDir.substring(CLASSPATH_SCHEME.length())));
                 } else {

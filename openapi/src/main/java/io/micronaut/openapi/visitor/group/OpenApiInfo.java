@@ -19,7 +19,7 @@ import io.micronaut.core.annotation.Internal;
 import io.swagger.v3.oas.models.OpenAPI;
 
 /**
- * Helpfull object with information about openAPI object and group / version settings.
+ * Helpful object with information about openAPI object and group / version settings.
  *
  * @since 4.10.0
  */

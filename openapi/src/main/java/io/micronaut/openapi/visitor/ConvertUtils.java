@@ -275,7 +275,7 @@ public final class ConvertUtils {
         try {
             value = CONVERT_JSON_MAPPER.treeToValue(jn, clazz);
         } catch (Exception e) {
-            // fix for problem with groovy. Jackson throw excetpion with ApiResponse class
+            // fix for problem with groovy. Jackson throw exception with ApiResponse class
             if (clazz == ApiResponse.class && jn.has("content")) {
                 var contentNode = jn.get("content");
                 ((ObjectNode) jn).set("content", null);

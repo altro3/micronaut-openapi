@@ -4,7 +4,7 @@
   <#list paths as pathsStr, path>
     <#list path.readOperationsMap() as method, operation>
 
-=== __${method}__ `${pathsStr}` ${operation.getSummary()?trim}
+=== __${method}__ `${pathsStr}`<#if operation.getSummary()?has_content> ${operation.getSummary()?trim}</#if>
       <#if operation.getDescription()?has_content>
 ${operation.getDescription()?trim}
 

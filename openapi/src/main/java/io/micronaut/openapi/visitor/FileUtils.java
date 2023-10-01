@@ -40,6 +40,7 @@ import static io.micronaut.openapi.visitor.OpenApiConfigProperty.MICRONAUT_OPENA
 @Internal
 public final class FileUtils {
 
+    public static final String EXT_ADOC = ".adoc";
     public static final String EXT_YML = ".yml";
     public static final String EXT_YAML = ".yaml";
     public static final String EXT_JSON = ".json";

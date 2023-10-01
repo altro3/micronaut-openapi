@@ -36,7 +36,7 @@ import org.pegdown.PegDownProcessor;
 import org.pegdown.ast.RootNode;
 
 /**
- * Convert-methods from MD fromat to AsciiDoc.
+ * Convert-methods from MD format to AsciiDoc.
  *
  * @since 5.2.0
  */
@@ -133,9 +133,13 @@ public final class MdToAdocConverter {
                 processParameters(openApi.getComponents().getParameters().values());
             }
             processExamples(openApi.getComponents().getExamples());
-            processRequestBodies(openApi.getComponents().getRequestBodies().values());
+            if (CollectionUtils.isNotEmpty(openApi.getComponents().getRequestBodies())) {
+                processRequestBodies(openApi.getComponents().getRequestBodies().values());
+            }
             processHeaders(openApi.getComponents().getHeaders());
-            processSecuritySchemas(openApi.getComponents().getSecuritySchemes().values());
+            if (CollectionUtils.isNotEmpty(openApi.getComponents().getSecuritySchemes())) {
+                processSecuritySchemas(openApi.getComponents().getSecuritySchemes().values());
+            }
             processLinks(openApi.getComponents().getLinks());
         }
     }
