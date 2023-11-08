@@ -484,9 +484,8 @@ class MyBean {}
         openAPI.components.schemas['TimeUnit'].enum[3] == 'Hour'
         openAPI.components.schemas['TimeUnit'].enum[4] == 'Day'
         openAPI.components.schemas['TimeUnit'].enum[5] == 'Week'
-        openAPI.components.schemas['Time'].allOf[0].$ref == '#/components/schemas/Quantity_Time.TimeUnit_'
+        openAPI.components.schemas['Time'].$ref == '#/components/schemas/Quantity_Time.TimeUnit_'
     }
-
 
     void "test schema with generic wildcard or placeholder"() {
         given:
@@ -515,6 +514,11 @@ class CommonController {
         return null;
     }
 
+    @Get("/get3")
+    public String index3(@Nullable @QueryValue Collection<@Nullable ? extends Channel> channels) {
+        return null;
+    }
+
     @Introspected
     enum Channel {
         SYSTEM1,
@@ -529,22 +533,77 @@ class MyBean {}
         OpenAPI openAPI = Utils.testReference
         Operation get1 = openAPI.paths?.get("/get1")?.get
         Operation get2 = openAPI.paths?.get("/get2")?.get
+        Operation get3 = openAPI.paths?.get("/get3")?.get
 
         expect:
         get1
-        get1.parameters.get(0).name == 'channels'
-        get1.parameters.get(0).in == 'query'
-        get1.parameters.get(0).schema
-        get1.parameters.get(0).schema.type == 'array'
-        get1.parameters.get(0).schema.nullable
-        get1.parameters.get(0).schema.items.$ref == '#/components/schemas/CommonController.Channel'
+        get1.parameters[0].name == 'channels'
+        get1.parameters[0].in == 'query'
+        get1.parameters[0].schema
+        get1.parameters[0].schema.type == 'array'
+        get1.parameters[0].schema.nullable
+        get1.parameters[0].schema.items.$ref == '#/components/schemas/CommonController.Channel'
 
         get2
-        get2.parameters.get(0).name == 'channels'
-        get2.parameters.get(0).in == 'query'
-        get2.parameters.get(0).schema
-        get2.parameters.get(0).schema.type == 'array'
-        get2.parameters.get(0).schema.nullable
-        get2.parameters.get(0).schema.items.$ref == '#/components/schemas/CommonController.Channel'
+        get2.parameters[0].name == 'channels'
+        get2.parameters[0].in == 'query'
+        get2.parameters[0].schema
+        get2.parameters[0].schema.type == 'array'
+        get2.parameters[0].schema.nullable
+        get2.parameters[0].schema.items.$ref == '#/components/schemas/CommonController.Channel'
+
+        get3
+        get3.parameters[0].name == 'channels'
+        get3.parameters[0].in == 'query'
+        get3.parameters[0].schema
+        get3.parameters[0].schema.type == 'array'
+        get3.parameters[0].schema.nullable
+        get3.parameters[0].schema.items.allOf
+        get3.parameters[0].schema.items.allOf[0].$ref == '#/components/schemas/CommonController.Channel'
+        get3.parameters[0].schema.items.allOf[1].nullable
+    }
+
+    void "test schema with generic wildcard or placeholder121"() {
+        given:
+        buildBeanDefinition('test.MyBean', '''
+
+package test;
+
+import java.util.Collection;
+
+import io.micronaut.core.annotation.Introspected;
+import io.micronaut.core.annotation.Nullable;
+import io.micronaut.http.annotation.Controller;
+import io.micronaut.http.annotation.Get;
+import io.micronaut.http.annotation.QueryValue;
+
+@Controller
+class CommonController {
+
+    @Get("/get1")
+    public ListElement<String> list() {
+        return null;
+    }
+}
+
+class ListElement<T> {
+//    public T typeValue;
+    public Iterable<T> iterableValues;
+//    public T[] arrayValues;
+}
+
+@jakarta.inject.Singleton
+class MyBean {}
+''')
+
+        OpenAPI openAPI = Utils.testReference
+        def schema = openAPI.components.schemas.'ListElement_String_'
+
+        expect:
+        schema.type == 'object'
+        schema.properties.typeValue.type == 'string'
+        schema.properties.arrayValues.type == 'string'
+        schema.properties.iterableValues.type == 'array'
+        schema.properties.iterableValues.items.type == 'string'
     }
 }
