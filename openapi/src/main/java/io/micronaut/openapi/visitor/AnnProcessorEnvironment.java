@@ -118,7 +118,7 @@ public class AnnProcessorEnvironment extends DefaultEnvironment {
             propertySources.addAll(readPropertySourceListFromFiles(propertySourcesEnv));
         }
         refreshablePropertySources.addAll(propertySources);
-        readConstantPropertySources(name, propertySources);
+        readConstantPropertySourcesPrivate(name, propertySources);
 
         propertySources.addAll(this.propertySources.values());
         OrderUtil.sort(propertySources);
@@ -127,7 +127,7 @@ public class AnnProcessorEnvironment extends DefaultEnvironment {
         }
     }
 
-    private void readConstantPropertySources(String name, List<PropertySource> propertySources) {
+    private void readConstantPropertySourcesPrivate(String name, List<PropertySource> propertySources) {
         var propertySourceNames = new HashSet<String>(getActiveNames().size() + 1);
         propertySourceNames.add(name);
         for (var activeName : getActiveNames()) {
@@ -169,19 +169,19 @@ public class AnnProcessorEnvironment extends DefaultEnvironment {
             } else {
                 throw new ConfigurationException("Unsupported config location format: " + configLocation);
             }
-            readPropertySourceList(name, resourceLoader, propertySources);
+            readPropertySourceListPrivate(name, resourceLoader, propertySources);
         }
         return propertySources;
     }
 
-    private void readPropertySourceList(String name, ResourceLoader resourceLoader, List<PropertySource> propertySources) {
+    private void readPropertySourceListPrivate(String name, ResourceLoader resourceLoader, List<PropertySource> propertySources) {
         Collection<PropertySourceLoader> propertySourceLoaders = getPropertySourceLoaders();
         if (propertySourceLoaders.isEmpty()) {
             PropertiesPropertySourceLoader propertySourceLoader = new PropertiesPropertySourceLoader(false);
-            loadPropertySourceFromLoader(name, propertySourceLoader, propertySources, resourceLoader);
+            loadPropertySourceFromLoaderPrivate(name, propertySourceLoader, propertySources, resourceLoader);
         } else {
             for (PropertySourceLoader propertySourceLoader : propertySourceLoaders) {
-                loadPropertySourceFromLoader(name, propertySourceLoader, propertySources, resourceLoader);
+                loadPropertySourceFromLoaderPrivate(name, propertySourceLoader, propertySources, resourceLoader);
             }
         }
     }
@@ -194,7 +194,7 @@ public class AnnProcessorEnvironment extends DefaultEnvironment {
         return loaders;
     }
 
-    private void loadPropertySourceFromLoader(String name, PropertySourceLoader propertySourceLoader, List<PropertySource> propertySources, ResourceLoader resourceLoader) {
+    private void loadPropertySourceFromLoaderPrivate(String name, PropertySourceLoader propertySourceLoader, List<PropertySource> propertySources, ResourceLoader resourceLoader) {
         Optional<PropertySource> defaultPropertySource = propertySourceLoader.load(name, resourceLoader);
         defaultPropertySource.ifPresent(propertySources::add);
         Set<String> activeNames = getActiveNames();

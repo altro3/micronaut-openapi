@@ -97,6 +97,9 @@ public abstract class AbstractMicronautJavaCodegen<T extends GeneratorOptionsBui
     public static final String CONTENT_TYPE_MULTIPART_FORM_DATA = "multipart/form-data";
     public static final String CONTENT_TYPE_ANY = "*/*";
 
+    private static final String VALUES = "values";
+    private static final String X_CONTENT_TYPE = "x-contentType";
+    private static final String MEDIA_TYPE = "mediaType";
     private static final String MONO_CLASS_NAME = "reactor.core.publisher.Mono";
     private static final String FLUX_CLASS_NAME = "reactor.core.publisher.Flux";
 
@@ -119,6 +122,7 @@ public abstract class AbstractMicronautJavaCodegen<T extends GeneratorOptionsBui
     protected List<ParameterMapping> parameterMappings = new ArrayList<>();
     protected List<ResponseBodyMapping> responseBodyMappings = new ArrayList<>();
     protected Map<String, CodegenModel> allModels = new HashMap<>();
+    protected final Random random = new Random();
 
     protected AbstractMicronautJavaCodegen() {
 
@@ -495,7 +499,7 @@ public abstract class AbstractMicronautJavaCodegen<T extends GeneratorOptionsBui
 
     @Override
     public String apiTestFileFolder() {
-        return testFileFolder() + apiPackage().replaceAll("\\.", "/");
+        return testFileFolder() + apiPackage().replace(".", "/");
     }
 
     @Override
@@ -601,8 +605,8 @@ public abstract class AbstractMicronautJavaCodegen<T extends GeneratorOptionsBui
                 if (models.containsKey(op.returnType)) {
                     CodegenModel m = models.get(op.returnType);
                     List<Object> allowableValues = null;
-                    if (m.allowableValues != null && m.allowableValues.containsKey("values")) {
-                        allowableValues = (List<Object>) m.allowableValues.get("values");
+                    if (m.allowableValues != null && m.allowableValues.containsKey(VALUES)) {
+                        allowableValues = (List<Object>) m.allowableValues.get(VALUES);
                     }
                     example = getExampleValue(m.defaultValue, null, m.classname, true,
                             allowableValues, null, null, m.requiredVars, false, false);
@@ -619,40 +623,40 @@ public abstract class AbstractMicronautJavaCodegen<T extends GeneratorOptionsBui
             }
 
             // Remove the "*/*" contentType from operations as it is ambiguous
-            if (CONTENT_TYPE_ANY.equals(op.vendorExtensions.get("x-contentType"))) {
-                op.vendorExtensions.put("x-contentType", CONTENT_TYPE_APPLICATION_JSON);
+            if (CONTENT_TYPE_ANY.equals(op.vendorExtensions.get(X_CONTENT_TYPE))) {
+                op.vendorExtensions.put(X_CONTENT_TYPE, CONTENT_TYPE_APPLICATION_JSON);
             }
             op.consumes = op.consumes == null ? null : op.consumes.stream()
-                    .filter(contentType -> !CONTENT_TYPE_ANY.equals(contentType.get("mediaType")))
+                    .filter(contentType -> !CONTENT_TYPE_ANY.equals(contentType.get(MEDIA_TYPE)))
                     .toList();
             op.produces = op.produces == null ? null : op.produces.stream()
-                    .filter(contentType -> !CONTENT_TYPE_ANY.equals(contentType.get("mediaType")))
+                    .filter(contentType -> !CONTENT_TYPE_ANY.equals(contentType.get(MEDIA_TYPE)))
                     .toList();
 
             // is only default "application/json" media type
             if (op.consumes == null
                     || op.consumes.isEmpty()
-                    || op.consumes.size() == 1 && "application/json".equals(op.consumes.get(0).get("mediaType"))) {
+                    || op.consumes.size() == 1 && CONTENT_TYPE_APPLICATION_JSON.equals(op.consumes.get(0).get(MEDIA_TYPE))) {
                 op.vendorExtensions.put("onlyDefaultConsumeOrEmpty", true);
             }
             // is only default "application/json" media type
             if (op.produces == null
                     || op.produces.isEmpty()
-                    || op.produces.size() == 1 && "application/json".equals(op.produces.get(0).get("mediaType"))) {
+                    || op.produces.size() == 1 && CONTENT_TYPE_APPLICATION_JSON.equals(op.produces.get(0).get(MEDIA_TYPE))) {
                 op.vendorExtensions.put("onlyDefaultProduceOrEmpty", true);
             }
 
             // Force form parameters are only set if the content-type is according
             // formParams correspond to urlencoded type
             // bodyParams correspond to multipart body
-            if (CONTENT_TYPE_APPLICATION_FORM_URLENCODED.equals(op.vendorExtensions.get("x-contentType"))) {
+            if (CONTENT_TYPE_APPLICATION_FORM_URLENCODED.equals(op.vendorExtensions.get(X_CONTENT_TYPE))) {
                 op.formParams.addAll(op.bodyParams);
                 op.bodyParams.forEach(p -> {
                     p.isBodyParam = false;
                     p.isFormParam = true;
                 });
                 op.bodyParams.clear();
-            } else if (CONTENT_TYPE_MULTIPART_FORM_DATA.equals(op.vendorExtensions.get("x-contentType"))) {
+            } else if (CONTENT_TYPE_MULTIPART_FORM_DATA.equals(op.vendorExtensions.get(X_CONTENT_TYPE))) {
                 op.bodyParams.addAll(op.formParams);
                 op.formParams.forEach(p -> {
                     p.isBodyParam = true;
@@ -886,7 +890,6 @@ public abstract class AbstractMicronautJavaCodegen<T extends GeneratorOptionsBui
         objs = super.postProcessAllModels(objs);
 
         var isServer = isServer();
-        var random = new Random();
 
         for (ModelsMap models : objs.values()) {
             CodegenModel model = models.getModels().get(0).getModel();
@@ -1039,7 +1042,7 @@ public abstract class AbstractMicronautJavaCodegen<T extends GeneratorOptionsBui
     }
 
     protected String getParameterExampleValue(CodegenParameter p, boolean groovy) {
-        List<Object> allowableValues = p.allowableValues == null ? null : (List<Object>) p.allowableValues.get("values");
+        List<Object> allowableValues = p.allowableValues == null ? null : (List<Object>) p.allowableValues.get(VALUES);
 
         return getExampleValue(p.defaultValue, p.example, p.dataType, p.isModel, allowableValues,
             p.items == null ? null : p.items.dataType,
@@ -1048,7 +1051,7 @@ public abstract class AbstractMicronautJavaCodegen<T extends GeneratorOptionsBui
     }
 
     protected String getPropertyExampleValue(CodegenProperty p, boolean groovy) {
-        List<Object> allowableValues = p.allowableValues == null ? null : (List<Object>) p.allowableValues.get("values");
+        List<Object> allowableValues = p.allowableValues == null ? null : (List<Object>) p.allowableValues.get(VALUES);
         var model = allModels.get(p.getDataType());
 
         return getExampleValue(p.defaultValue, p.example, p.dataType, p.isModel, allowableValues,

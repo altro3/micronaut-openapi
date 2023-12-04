@@ -323,7 +323,9 @@ public final class ConfigUtils {
             try {
                 propertiesFromEnv = env.getProperties(MICRONAUT_OPENAPI_ADOC_TEMPLATE_PREFIX.substring(0, MICRONAUT_OPENAPI_ADOC_TEMPLATE_PREFIX.length() - 1), null);
             } catch (Exception e) {
-                context.warn("Error:\n" + Utils.printStackTrace(e), null);
+                if (context != null) {
+                    context.warn("Error:\n" + Utils.printStackTrace(e), null);
+                }
             }
         }
 

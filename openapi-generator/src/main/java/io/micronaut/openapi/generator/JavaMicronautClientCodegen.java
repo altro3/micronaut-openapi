@@ -114,14 +114,14 @@ public class JavaMicronautClientCodegen extends AbstractMicronautJavaCodegen<Jav
             supportingFiles.add(new SupportingFile("client/auth/configuration/ConfigurableAuthorization.mustache", authConfigurationFolder, "ConfigurableAuthorization.java"));
             supportingFiles.add(new SupportingFile("client/auth/configuration/HttpBasicAuthConfiguration.mustache", authConfigurationFolder, "HttpBasicAuthConfiguration.java"));
 
-            var authorizationFilterPattern = additionalProperties.get(AUTHORIZATION_FILTER_PATTERN);
-            if (authorizationFilterPattern != null) {
-                this.authorizationFilterPattern = authorizationFilterPattern.toString();
+            var authorizationFilterPatternProp = additionalProperties.get(AUTHORIZATION_FILTER_PATTERN);
+            if (authorizationFilterPatternProp != null) {
+                authorizationFilterPattern = authorizationFilterPatternProp.toString();
             }
-            if (this.authorizationFilterPattern != null) {
+            if (authorizationFilterPattern != null) {
                 writePropertyBack(OPT_CONFIGURE_AUTH_FILTER_PATTERN, true);
             }
-            writePropertyBack(AUTHORIZATION_FILTER_PATTERN, this.authorizationFilterPattern);
+            writePropertyBack(AUTHORIZATION_FILTER_PATTERN, authorizationFilterPattern);
         }
 
         Object additionalClientAnnotations = additionalProperties.get(ADDITIONAL_CLIENT_TYPE_ANNOTATIONS);
@@ -135,20 +135,20 @@ public class JavaMicronautClientCodegen extends AbstractMicronautJavaCodegen<Jav
         }
         writePropertyBack(ADDITIONAL_CLIENT_TYPE_ANNOTATIONS, additionalClientTypeAnnotations);
 
-        var clientId = additionalProperties.get(CLIENT_ID);
-        if (clientId != null) {
-            this.clientId = clientId.toString();
+        var clientIdProp = additionalProperties.get(CLIENT_ID);
+        if (clientIdProp != null) {
+            clientId = clientIdProp.toString();
         }
-        if (this.clientId != null) {
+        if (clientId != null) {
             writePropertyBack(OPT_CONFIGURE_CLIENT_ID, true);
-            writePropertyBack(CLIENT_ID, this.clientId);
+            writePropertyBack(CLIENT_ID, clientId);
         }
 
-        var basePathSeparator = additionalProperties.get(BASE_PATH_SEPARATOR);
-        if (basePathSeparator != null) {
-            this.basePathSeparator = basePathSeparator.toString();
+        var basePathSeparatorProp = additionalProperties.get(BASE_PATH_SEPARATOR);
+        if (basePathSeparatorProp != null) {
+            basePathSeparator = basePathSeparatorProp.toString();
         }
-        writePropertyBack(BASE_PATH_SEPARATOR, this.basePathSeparator);
+        writePropertyBack(BASE_PATH_SEPARATOR, basePathSeparator);
 
         // Api file
         apiTemplateFiles.clear();

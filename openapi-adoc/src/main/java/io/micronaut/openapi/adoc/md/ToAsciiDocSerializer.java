@@ -70,6 +70,7 @@ import static org.parboiled.common.Preconditions.checkArgNotNull;
 public class ToAsciiDocSerializer implements Visitor {
 
     public static final String HARD_LINE_BREAK_MARKDOWN = "  \n";
+    private static final String PREFIX_IMAGE = "image:";
 
     protected String source;
     protected Printer printer;
@@ -210,7 +211,7 @@ public class ToAsciiDocSerializer implements Visitor {
     @Override
     public void visit(ExpLinkNode node) {
         String text = printChildrenToString(node);
-        if (text.startsWith("image:")) {
+        if (text.startsWith(PREFIX_IMAGE)) {
             printer.print(text);
         } else {
             printLink(linkRenderer.render(node, text));
@@ -606,13 +607,13 @@ public class ToAsciiDocSerializer implements Visitor {
     }
 
     protected void printImageTag(LinkRenderer.Rendering rendering) {
-        printer.print("image:").print(rendering.href).print('[');
+        printer.print(PREFIX_IMAGE).print(rendering.href).print('[');
         printTextWithQuotesIfNeeded(printer, rendering.text);
         printer.print(']');
     }
 
     protected void printImageTagWithLink(LinkRenderer.Rendering image, LinkRenderer.Rendering link) {
-        printer.print("image:").print(image.href).print('[');
+        printer.print(PREFIX_IMAGE).print(image.href).print('[');
         if (image.text != null && !image.text.isEmpty()) {
             printTextWithQuotesIfNeeded(printer, image.text);
             printer.print(',');

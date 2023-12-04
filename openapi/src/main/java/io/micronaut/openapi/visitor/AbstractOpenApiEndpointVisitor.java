@@ -1139,8 +1139,7 @@ public abstract class AbstractOpenApiEndpointVisitor extends AbstractOpenApiVisi
     private void readResponse(MethodElement element, VisitorContext context, OpenAPI openAPI,
                               io.swagger.v3.oas.models.Operation swaggerOperation, JavadocDescription javadocDescription, @Nullable ClassElement jsonViewClass) {
 
-        boolean withMethodResponses = element.hasDeclaredAnnotation(io.swagger.v3.oas.annotations.responses.ApiResponse.class)
-            || element.hasDeclaredAnnotation(io.swagger.v3.oas.annotations.responses.ApiResponse.class);
+        boolean withMethodResponses = element.hasDeclaredAnnotation(io.swagger.v3.oas.annotations.responses.ApiResponse.class);
 
         HttpStatus methodResponseStatus = element.enumValue(Status.class, HttpStatus.class).orElse(HttpStatus.OK);
         String responseCode = Integer.toString(methodResponseStatus.getCode());
@@ -1193,7 +1192,7 @@ public abstract class AbstractOpenApiEndpointVisitor extends AbstractOpenApiVisi
             returnType = null;
         } else if (isResponseType(returnType)) {
             returnType = returnType.getFirstTypeArgument().orElse(returnType);
-        } else if (isSingleResponseType(returnType)) {
+        } else if (isSingleResponseType(returnType) && returnType.getFirstTypeArgument().isPresent()) {
             returnType = returnType.getFirstTypeArgument().get();
             returnType = returnType.getFirstTypeArgument().orElse(returnType);
         }
@@ -1493,7 +1492,7 @@ public abstract class AbstractOpenApiEndpointVisitor extends AbstractOpenApiVisi
         }
     }
 
-    private void processSecurityAccess(String securitySchemeName, List<String> access, io.swagger.v3.oas.models.Operation operation) {
+    private void processSecurityAccess(String securitySchemeName, @Nullable List<String> access, io.swagger.v3.oas.models.Operation operation) {
         if (CollectionUtils.isEmpty(access)) {
             return;
         }

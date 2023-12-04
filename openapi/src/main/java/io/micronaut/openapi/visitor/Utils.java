@@ -113,9 +113,10 @@ public final class Utils {
                     return Optional.empty();
                 }
 
+                @NonNull
                 @Override
                 public Collection<List<String>> getPropertyPathMatches(String pathPattern) {
-                    return null;
+                    return Collections.emptyList();
                 }
             }, new DefaultMutableConversionService());
         }

@@ -62,7 +62,6 @@ public class JavaMicronautServerCodegen extends AbstractMicronautJavaCodegen<Jav
     protected static final String API_PREFIX = "";
     protected static final String API_SUFFIX = "Api";
 
-    protected String apiPackage = "org.openapitools.api";
     protected String controllerPackage = "org.openapitools.controller";
     protected boolean generateImplementationFiles = true;
     protected boolean generateOperationsToReturnNotImplemented = true;

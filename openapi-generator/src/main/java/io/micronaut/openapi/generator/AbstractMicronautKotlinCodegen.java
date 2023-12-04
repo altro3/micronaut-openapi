@@ -104,6 +104,7 @@ public abstract class AbstractMicronautKotlinCodegen<T extends GeneratorOptionsB
     public static final String CONTENT_TYPE_MULTIPART_FORM_DATA = "multipart/form-data";
     public static final String CONTENT_TYPE_ANY = "*/*";
 
+    private static final String REQUIRED_VARS_WITHOUT_DISCRIMINATOR = "requiredVarsWithoutDiscriminator";
     private static final String MONO_CLASS_NAME = "reactor.core.publisher.Mono";
     private static final String FLUX_CLASS_NAME = "reactor.core.publisher.Flux";
 
@@ -127,6 +128,7 @@ public abstract class AbstractMicronautKotlinCodegen<T extends GeneratorOptionsB
     protected Map<String, CodegenModel> allModels = new HashMap<>();
 
     private final Map<String, String> schemaKeyToModelNameCache = new HashMap<>();
+    private final Random random = new Random();
 
     protected AbstractMicronautKotlinCodegen() {
 
@@ -777,9 +779,10 @@ public abstract class AbstractMicronautKotlinCodegen<T extends GeneratorOptionsB
             return schemaMapping.get(name);
         }
 
-        String modifiedName = name.replaceAll("\\.", "").replaceAll("-", "_");
+        String modifiedName = name.replace(".", "")
+            .replace("-", "_");
 
-        String nameWithPrefixSuffix = sanitizeKotlinSpecificNames(modifiedName);
+        String nameWithPrefixSuffix = sanitizeKotlinSpecific(modifiedName);
         if (!StringUtils.isEmpty(modelNamePrefix)) {
             // add '_' so that model name can be camelized correctly
             nameWithPrefixSuffix = modelNamePrefix + "_" + nameWithPrefixSuffix;
@@ -807,7 +810,7 @@ public abstract class AbstractMicronautKotlinCodegen<T extends GeneratorOptionsB
             return modelName;
         }
 
-        schemaKeyToModelNameCache.put(name, titleCase(modifiedName));
+        schemaKeyToModelNameCache.put(name, capitalLetter(modifiedName));
         return schemaKeyToModelNameCache.get(name);
     }
 
@@ -837,7 +840,7 @@ public abstract class AbstractMicronautKotlinCodegen<T extends GeneratorOptionsB
         String modified;
         if (value.isEmpty()) {
             modified = "EMPTY";
-            return sanitizeKotlinSpecificNames(modified);
+            return sanitizeKotlinSpecific(modified);
         }
         value = value.replaceAll("[^a-zA-Z0-9_]", "_");
         if (isNumeric(value)) {
@@ -1019,7 +1022,6 @@ public abstract class AbstractMicronautKotlinCodegen<T extends GeneratorOptionsB
         objs = super.postProcessAllModels(objs);
 
         var isServer = isServer();
-        var random = new Random();
 
         for (ModelsMap models : objs.values()) {
             CodegenModel model = models.getModels().get(0).getModel();
@@ -1055,7 +1057,7 @@ public abstract class AbstractMicronautKotlinCodegen<T extends GeneratorOptionsB
                 model.vendorExtensions.put("requiredParentVarsWithoutDiscriminator", requiredParentVarsWithoutDiscriminator);
             }
             if (!requiredVarsWithoutDiscriminator.isEmpty()) {
-                model.vendorExtensions.put("requiredVarsWithoutDiscriminator", requiredVarsWithoutDiscriminator);
+                model.vendorExtensions.put(REQUIRED_VARS_WITHOUT_DISCRIMINATOR, requiredVarsWithoutDiscriminator);
             }
             model.allVars = allVars;
             model.vendorExtensions.put("requiredVars", requiredVars);
@@ -1131,10 +1133,10 @@ public abstract class AbstractMicronautKotlinCodegen<T extends GeneratorOptionsB
                     v.vendorExtensions.put("overridden", true);
                 }
                 v.vendorExtensions.put("hasChildren", model.hasChildren);
-                if (model.parentModel == null || !containsProp(v, (List<CodegenProperty>) model.parentModel.vendorExtensions.get("requiredVarsWithoutDiscriminator"))) {
+                if (model.parentModel == null || !containsProp(v, (List<CodegenProperty>) model.parentModel.vendorExtensions.get(REQUIRED_VARS_WITHOUT_DISCRIMINATOR))) {
                     requiredVarsWithoutDiscriminator.add(v);
                 }
-                if (processParentModel && containsProp(v, (List<CodegenProperty>) model.vendorExtensions.get("requiredVarsWithoutDiscriminator"))) {
+                if (processParentModel && containsProp(v, (List<CodegenProperty>) model.vendorExtensions.get(REQUIRED_VARS_WITHOUT_DISCRIMINATOR))) {
                     v.isOverridden = true;
                     v.vendorExtensions.put("overridden", true);
                 }
@@ -1368,13 +1370,13 @@ public abstract class AbstractMicronautKotlinCodegen<T extends GeneratorOptionsB
      * @param name string to be sanitize
      * @return sanitized string
      */
-    private String sanitizeKotlinSpecificNames(final String name) {
+    private String sanitizeKotlinSpecific(final String name) {
         if (typeMapping.containsValue(name)) {
             return name;
         }
         String word = name;
         for (Map.Entry<String, String> specialCharacters : specialCharReplacements.entrySet()) {
-            word = replaceSpecialCharacters(word, specialCharacters);
+            word = replaceSpecialChars(word, specialCharacters);
         }
 
         // Fallback, replace unknowns with underscore.
@@ -1391,17 +1393,17 @@ public abstract class AbstractMicronautKotlinCodegen<T extends GeneratorOptionsB
         return word;
     }
 
-    private String replaceSpecialCharacters(String word, Map.Entry<String, String> specialCharacters) {
+    private String replaceSpecialChars(String word, Map.Entry<String, String> specialCharacters) {
         String specialChar = specialCharacters.getKey();
         String replacementChar = specialCharacters.getValue();
         // Underscore is the only special character we'll allow
         if (!specialChar.equals("_") && word.contains(specialChar)) {
-            return replaceCharacters(word, specialChar, replacementChar);
+            return replaceChars(word, specialChar, replacementChar);
         }
         return word;
     }
 
-    private String replaceCharacters(String word, String oldValue, String newValue) {
+    private String replaceChars(String word, String oldValue, String newValue) {
         if (!word.contains(oldValue)) {
             return word;
         }
@@ -1410,20 +1412,20 @@ public abstract class AbstractMicronautKotlinCodegen<T extends GeneratorOptionsB
         }
         int i = word.indexOf(oldValue);
         String start = word.substring(0, i);
-        String end = recurseOnEndOfWord(word, oldValue, newValue, i);
+        String end = recurseEndOfWord(word, oldValue, newValue, i);
         return start + newValue + end;
     }
 
-    private String recurseOnEndOfWord(String word, String oldValue, String newValue, int lastReplacedValue) {
+    private String recurseEndOfWord(String word, String oldValue, String newValue, int lastReplacedValue) {
         String end = word.substring(lastReplacedValue + 1);
         if (!end.isEmpty()) {
-            end = titleCase(end);
-            end = replaceCharacters(end, oldValue, newValue);
+            end = capitalLetter(end);
+            end = replaceChars(end, oldValue, newValue);
         }
         return end;
     }
 
-    private String titleCase(final String input) {
+    private String capitalLetter(final String input) {
         return input.substring(0, 1).toUpperCase(Locale.ROOT) + input.substring(1);
     }
 }

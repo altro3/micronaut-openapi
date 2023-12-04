@@ -56,6 +56,8 @@ import com.fasterxml.jackson.databind.node.TextNode;
  */
 public class ModelDeserializer extends JsonDeserializer<Schema> {
 
+    private static final String FIELD_ADDITIONAL_PROPERTIES = "additionalProperties";
+
     protected boolean openapi31;
 
     @Override
@@ -122,12 +124,12 @@ public class ModelDeserializer extends JsonDeserializer<Schema> {
     }
 
     private Schema deserializeObjectSchema(JsonNode node, boolean withType) {
-        JsonNode additionalProperties = node.get("additionalProperties");
+        JsonNode additionalProperties = node.get(FIELD_ADDITIONAL_PROPERTIES);
         Schema schema;
         if (additionalProperties != null) {
             if (additionalProperties.isBoolean()) {
                 Boolean additionalPropsBoolean = OpenApiUtils.getJsonMapper().convertValue(additionalProperties, Boolean.class);
-                ((ObjectNode) node).remove("additionalProperties");
+                ((ObjectNode) node).remove(FIELD_ADDITIONAL_PROPERTIES);
                 if (additionalPropsBoolean) {
                     schema = OpenApiUtils.getJsonMapper().convertValue(node, MapSchema.class);
                 } else {
@@ -140,7 +142,7 @@ public class ModelDeserializer extends JsonDeserializer<Schema> {
                 schema.setAdditionalProperties(additionalPropsBoolean);
             } else {
                 Schema innerSchema = OpenApiUtils.getJsonMapper().convertValue(additionalProperties, Schema.class);
-                ((ObjectNode) node).remove("additionalProperties");
+                ((ObjectNode) node).remove(FIELD_ADDITIONAL_PROPERTIES);
                 MapSchema ms = OpenApiUtils.getJsonMapper().convertValue(node, MapSchema.class);
                 ms.setAdditionalProperties(innerSchema);
                 schema = ms;
@@ -166,7 +168,7 @@ public class ModelDeserializer extends JsonDeserializer<Schema> {
         if (node.isBoolean()) {
             return new Schema().booleanSchemaValue(node.booleanValue());
         }
-        JsonNode additionalProperties = node.get("additionalProperties");
+        JsonNode additionalProperties = node.get(FIELD_ADDITIONAL_PROPERTIES);
         JsonNode type = node.get("type");
         Schema schema;
 
@@ -175,7 +177,7 @@ public class ModelDeserializer extends JsonDeserializer<Schema> {
                 ((ObjectNode) node).remove("type");
             }
             if (additionalProperties != null) {
-                ((ObjectNode) node).remove("additionalProperties");
+                ((ObjectNode) node).remove(FIELD_ADDITIONAL_PROPERTIES);
             }
             schema = OpenApiUtils.getJsonMapper31().convertValue(node, JsonSchema.class);
             if (type instanceof TextNode) {
