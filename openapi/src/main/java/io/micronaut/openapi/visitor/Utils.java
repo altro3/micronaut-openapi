@@ -156,7 +156,7 @@ public final class Utils {
      */
     public static <T> List<T> findAndRemoveDuplicates(List<T> elements, BiPredicate<T, T> predicate) {
         if (CollectionUtils.isEmpty(elements)) {
-            return elements;
+            return null;
         }
         var result = new ArrayList<T>();
         for (var element : elements) {
