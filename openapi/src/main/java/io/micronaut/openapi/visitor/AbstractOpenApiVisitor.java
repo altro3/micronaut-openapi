@@ -822,7 +822,7 @@ abstract class AbstractOpenApiVisitor {
         } else if (type instanceof GenericElement genericEl) {
             isArray = type.isArray();
             isIterable = type.isIterable();
-            type = genericEl.getResolved().orElse(null);
+//            type = genericEl.getResolved().orElse(null);
         }
         Map<String, ClassElement> typeArgs = type != null ? type.getTypeArguments() : null;
 
