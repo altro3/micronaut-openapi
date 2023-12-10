@@ -2442,15 +2442,21 @@ abstract class AbstractOpenApiVisitor {
         }
 
         if (classElement != null) {
-            List<PropertyElement> beanProperties;
+            var beanProperties = new ArrayList<PropertyElement>();
             try {
-                beanProperties = classElement.getBeanProperties().stream()
-                    .filter(p -> !"groovy.lang.MetaClass".equals(p.getType().getName()))
-                    .toList();
+                for (var p : classElement.getBeanProperties()) {
+                    // Workaround for https://github.com/micronaut-projects/micronaut-openapi/issues/313
+                    if ("groovy.lang.MetaClass".equals(p.getType().getName())) {
+                        continue;
+                    }
+                    // fix for https://github.com/micronaut-projects/micronaut-core/issues/10228
+                    if (p.isStatic() && p.isFinal()) {
+                        continue;
+                    }
+                    beanProperties.add(p);
+                }
             } catch (Exception e) {
                 warn("Error with getting properties for class " + classElement.getName() + ": " + e + "\n" + Utils.printStackTrace(e), context, classElement);
-                // Workaround for https://github.com/micronaut-projects/micronaut-openapi/issues/313
-                beanProperties = Collections.emptyList();
             }
             processPropertyElements(openAPI, context, type, typeArgs, schema, beanProperties, mediaTypes, classJavadoc, jsonViewClass);
 

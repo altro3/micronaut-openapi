@@ -27,7 +27,6 @@ import io.micronaut.core.annotation.Nullable;
 import io.micronaut.inject.ast.ClassElement;
 import io.micronaut.inject.ast.Element;
 import io.micronaut.inject.ast.TypedElement;
-import io.micronaut.inject.visitor.VisitorContext;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -67,21 +66,6 @@ public final class ElementUtils {
     );
 
     private ElementUtils() {
-    }
-
-    /**
-     * Returns true if classElement is a JavaClassElement.
-     *
-     * @param classElement A ClassElement.
-     * @param context The context.
-     *
-     * @return true if classElement is a JavaClassElement.
-     */
-    public static boolean isJavaElement(ClassElement classElement, VisitorContext context) {
-        return classElement != null
-            && "io.micronaut.annotation.processing.visitor.JavaClassElement".equals(classElement.getClass().getName())
-            && context != null
-            && "io.micronaut.annotation.processing.visitor.JavaVisitorContext".equals(context.getClass().getName());
     }
 
     /**
@@ -125,7 +109,7 @@ public final class ElementUtils {
      *
      * @return true if element is not nullable
      */
-    public static boolean isElementNotNullable(Element element, @Nullable Element classElement) {
+    public static boolean isElementNotNullable(TypedElement element, @Nullable Element classElement) {
         return element.isAnnotationPresent("javax.validation.constraints.NotNull$List")
             || element.isAnnotationPresent("jakarta.validation.constraints.NotNull$List")
             || element.isAnnotationPresent("javax.validation.constraints.NotBlank$List")
