@@ -194,6 +194,7 @@ import static io.micronaut.openapi.visitor.OpenApiModelProp.PROP_TITLE;
 import static io.micronaut.openapi.visitor.OpenApiModelProp.PROP_TYPE;
 import static io.micronaut.openapi.visitor.OpenApiModelProp.PROP_VALUE;
 import static io.micronaut.openapi.visitor.OpenApiModelProp.PROP_WRITE_ONLY;
+import static io.micronaut.openapi.visitor.ProtoUtils.ENUM_VAL_UNRECOGNIZED;
 import static io.micronaut.openapi.visitor.ProtoUtils.filterProtobufProperties;
 import static io.micronaut.openapi.visitor.ProtoUtils.isProtobufGenerated;
 import static io.micronaut.openapi.visitor.ProtoUtils.isProtobufMessageClass;
@@ -2538,6 +2539,9 @@ abstract class AbstractOpenApiVisitor {
     }
 
     private List<Object> getEnumValues(EnumElement type, String schemaType, String schemaFormat, VisitorContext context) {
+
+        var isProtobufEnum = isProtobufGenerated(type);
+
         var enumValues = new ArrayList<>();
         for (EnumConstantElement element : type.elements()) {
 
@@ -2546,7 +2550,9 @@ abstract class AbstractOpenApiVisitor {
 
             if (isHidden
                 || isAnnotationPresent(element, Hidden.class)
-                || isAnnotationPresent(element, JsonIgnore.class)) {
+                || isAnnotationPresent(element, JsonIgnore.class)
+                || (isProtobufEnum && element.getName().equals(ENUM_VAL_UNRECOGNIZED))
+            ) {
                 continue;
             }
             var jsonPropertyAnn = getAnnotation(element, JsonProperty.class);

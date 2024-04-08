@@ -35,6 +35,8 @@ import static io.micronaut.openapi.visitor.SchemaUtils.setSpecVersion;
 @Internal
 public final class ProtoUtils {
 
+    public static final String ENUM_VAL_UNRECOGNIZED = "UNRECOGNIZED";
+
     public static List<PropertyElement> filterProtobufProperties(ClassElement classElement, List<PropertyElement> beanProperties) {
         if (!isProtobufGenerated(classElement)) {
             return beanProperties;
