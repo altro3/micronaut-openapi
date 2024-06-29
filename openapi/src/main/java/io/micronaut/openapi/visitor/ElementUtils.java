@@ -23,6 +23,7 @@ import io.micronaut.core.annotation.AnnotationMetadata;
 import io.micronaut.core.annotation.AnnotationValue;
 import io.micronaut.core.annotation.Internal;
 import io.micronaut.http.HttpRequest;
+import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Header;
 import io.micronaut.http.multipart.FileUpload;
 import io.micronaut.inject.annotation.AnnotationMetadataHierarchy;
@@ -36,8 +37,10 @@ import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.lang.annotation.Annotation;
 import java.nio.ByteBuffer;
 import java.security.Principal;
@@ -47,6 +50,7 @@ import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 
 import static io.micronaut.openapi.visitor.ConfigUtils.isJsonViewEnabled;
 import static io.micronaut.openapi.visitor.OpenApiModelProp.PROP_HIDDEN;
@@ -92,6 +96,20 @@ public final class ElementUtils {
     );
 
     private ElementUtils() {
+    }
+
+    public static boolean isSingleResponseType(ClassElement returnType) {
+        return (returnType.isAssignable("io.reactivex.Single")
+                || returnType.isAssignable("io.reactivex.rxjava3.core.Single")
+                || returnType.isAssignable("org.reactivestreams.Publisher"))
+                && returnType.getFirstTypeArgument().isPresent()
+                && isResponseType(returnType.getFirstTypeArgument().orElse(null));
+    }
+
+    public static boolean isResponseType(ClassElement returnType) {
+        return returnType != null
+                && (returnType.isAssignable(HttpResponse.class)
+                || returnType.isAssignable("org.springframework.http.HttpEntity"));
     }
 
     /**
@@ -399,4 +417,26 @@ public final class ElementUtils {
         }
         return null;
     }
+
+    public static void findAllClassElementsInPackage(String packageName, boolean withSubpackages, List<ClassElement> result, VisitorContext context) {
+        var stream = ClassLoader.getSystemClassLoader().getResourceAsStream(packageName.replaceAll("[.]", "/"));
+        if (stream == null) {
+            return;
+        }
+        var reader = new BufferedReader(new InputStreamReader(stream));
+        var lines = reader.lines().collect(Collectors.toSet());
+        for (var line : lines) {
+            if (line.endsWith(".class")) {
+                var classEl = ContextUtils.getClassElement(packageName + '.' + line.substring(0, line.lastIndexOf('.')), context);
+                if (classEl != null) {
+                    result.add(classEl);
+                }
+                continue;
+            }
+            if (withSubpackages) {
+                findAllClassElementsInPackage(packageName + '.' + line, true, result, context);
+            }
+        }
+    }
+
 }
