@@ -30,6 +30,10 @@ endpoints:
   endpointservers: Endpoints Servers
   endpointssecurityrequirements: Endpoints Security Requirements
   endpointspath: Endpoints Path
+spring:
+  title: Micronaut OpenAPI with Spring
+  springWithGradle: Spring with Gradle
+  springWithMaven: Spring with Maven
 micronautOpenApiAnnotations:
   title: Micronaut OpenAPI annotations
   openapidecorator: '@OpenAPIDecorator'

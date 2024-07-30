@@ -18,6 +18,7 @@ swagger-parser-v3 = "2.1.22"
 javaparser = "3.26.2"
 commons-codec = "1.17.1"
 guava = "33.3.0-jre"
+spring-boot = "3.3.3"
 
 micronaut = "4.6.5"
 micronaut-platform = "4.6.2"
@@ -36,6 +37,7 @@ micronaut-kotlin = "4.4.0"
 micronaut-logging = "1.4.0"
 micronaut-session = "4.4.0"
 micronaut-grpc = "4.7.0"
+micronaut-spring = "5.8.0"
 micronaut-docs = "2.0.0"
 
 [libraries]
@@ -68,6 +70,7 @@ micronaut-data = { module = "io.micronaut.data:micronaut-data-bom", version.ref 
 micronaut-test = { module = "io.micronaut.test:micronaut-test-bom", version.ref = "micronaut-test" }
 micronaut-kotlin = { module = "io.micronaut.kotlin:micronaut-kotlin-bom", version.ref = "micronaut-kotlin" }
 micronaut-grpc = { module = "io.micronaut.grpc:micronaut-grpc-bom", version.ref = "micronaut-grpc" }
+micronaut-spring = { module = "io.micronaut.spring:micronaut-spring-bom", version.ref = "micronaut-spring" }
 micronaut-platform = { module = "io.micronaut.platform:micronaut-platform", version.ref = "micronaut-platform"}
 micronaut-gradle-plugin = { module = "io.micronaut.gradle:micronaut-minimal-plugin", version.ref = "micronaut-gradle-plugin"}
 
@@ -79,6 +82,7 @@ android-annotation = { module = "androidx.annotation:annotation", version.ref = 
 javaparser = { module = "com.github.javaparser:javaparser-symbol-solver-core", version.ref = "javaparser" }
 commons-codec = { module = "commons-codec:commons-codec", version.ref = "commons-codec" }
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
+spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
 
 openapi-generator = { module = "org.openapitools:openapi-generator", version.ref = "openapi-generator" }
 swagger-parser = { module = "io.swagger:swagger-parser", version.ref = "swagger-parser" }
