@@ -587,4 +587,27 @@ class JavaMicronautClientCodegenTest extends AbstractMicronautCodegenTest {
             "@AllArgsConstructor",
             "@Data");
     }
+
+    @Test
+    void testTest() {
+
+        var codegen = new JavaMicronautClientCodegen();
+        String outputPath = generateFiles(codegen, "src/test/resources/3_0/test.yml", CodegenConstants.APIS, CodegenConstants.MODELS);
+        String path = outputPath + "src/main/java/org/openapitools/";
+//
+//        assertFileContains(path + "model/V1ForecastIdGet400Response.java",
+//            "import lombok.AllArgsConstructor;",
+//            "import lombok.NoArgsConstructor;",
+//            "import lombok.RequiredArgsConstructor;",
+//            "import lombok.Data;",
+//            "import lombok.EqualsAndHashCode;",
+//            "import lombok.Getter;",
+//            "import lombok.Setter;",
+//            "import lombok.ToString;",
+//            "import lombok.experimental.Accessors;",
+//            "@Accessors(chain = true)",
+//            "@NoArgsConstructor",
+//            "@AllArgsConstructor",
+//            "@Data");
+    }
 }

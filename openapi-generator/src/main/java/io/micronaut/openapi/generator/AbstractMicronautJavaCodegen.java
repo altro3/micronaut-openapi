@@ -22,10 +22,12 @@ import com.samskivert.mustache.Mustache;
 import io.micronaut.openapi.generator.Formatting.ReplaceDotsWithUnderscoreLambda;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
+import io.swagger.v3.oas.models.PathItem;
 import io.swagger.v3.oas.models.media.Content;
 import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.parameters.Parameter;
+import io.swagger.v3.oas.models.parameters.RequestBody;
 import io.swagger.v3.oas.models.servers.Server;
 import io.swagger.v3.parser.util.SchemaTypeUtil;
 import org.apache.commons.lang3.StringUtils;
@@ -1051,6 +1053,62 @@ public abstract class AbstractMicronautJavaCodegen<T extends GeneratorOptionsBui
         super.addOperationToGroup(super.sanitizeTag(tag), resourcePath, operation, co, operations);
     }
 
+    private List<Operation> divideOperationsByContentType(String path, PathItem.HttpMethod httpMethod, Operation op) {
+
+        if (op == null) {
+            return Collections.emptyList();
+        }
+
+        var additionalOps = new ArrayList<Operation>();
+
+        var body = op.getRequestBody();
+        if (body == null || body.getContent() == null) {
+            return Collections.emptyList();
+        }
+        var content = body.getContent();
+        if (content.size() <= 1) {
+            return Collections.emptyList();
+        }
+        var mediaTypesToRemove = new ArrayList<String>();
+        for (var entry : content.entrySet()) {
+            if (mediaTypesToRemove.contains(entry.getKey())) {
+                continue;
+            }
+            var i = 1;
+            for (var entry2 : content.entrySet()) {
+                if (entry.getKey().equals(entry2.getKey()) || entry.getValue().equals(entry2.getValue())) {
+                    continue;
+                }
+                additionalOps.add(new Operation()
+                    .deprecated(op.getDeprecated())
+                    .callbacks(op.getCallbacks())
+                    .description(op.getDescription())
+                    .extensions(op.getExtensions())
+                    .externalDocs(op.getExternalDocs())
+                    .operationId(getOrGenerateOperationId(op, path, httpMethod.name()) + i)
+                    .parameters(op.getParameters())
+                    .responses(op.getResponses())
+                    .security(op.getSecurity())
+                    .servers(op.getServers())
+                    .summary(op.getSummary())
+                    .tags(op.getTags())
+                    .requestBody(new RequestBody()
+                        .description(body.getDescription())
+                        .extensions(body.getExtensions())
+                        .content(new Content()
+                            .addMediaType(entry2.getKey(), entry2.getValue()))
+                    )
+                );
+                mediaTypesToRemove.add(entry2.getKey());
+            }
+        }
+        if (!mediaTypesToRemove.isEmpty()) {
+            content.entrySet().removeIf(stringMediaTypeEntry -> mediaTypesToRemove.contains(stringMediaTypeEntry.getKey()));
+        }
+
+        return additionalOps;
+    }
+
     @Override
     public void preprocessOpenAPI(OpenAPI openApi) {
 
@@ -1077,6 +1135,43 @@ public abstract class AbstractMicronautJavaCodegen<T extends GeneratorOptionsBui
                             op.getParameters().add(param);
                         }
                     }
+                }
+            }
+
+            for (var entry : openApi.getPaths().entrySet()) {
+                var pathStr = entry.getKey();
+                var path = entry.getValue();
+                var getOps = divideOperationsByContentType(pathStr, PathItem.HttpMethod.GET, path.getGet());
+                if (!getOps.isEmpty()) {
+                    path.addExtension("x-get", getOps);
+                }
+                var putOps = divideOperationsByContentType(pathStr, PathItem.HttpMethod.PUT, path.getPut());
+                if (!putOps.isEmpty()) {
+                    path.addExtension("x-put", putOps);
+                }
+                var postOps = divideOperationsByContentType(pathStr, PathItem.HttpMethod.POST, path.getPost());
+                if (!postOps.isEmpty()) {
+                    path.addExtension("x-post", postOps);
+                }
+                var deleteOps = divideOperationsByContentType(pathStr, PathItem.HttpMethod.DELETE, path.getDelete());
+                if (!deleteOps.isEmpty()) {
+                    path.addExtension("x-delete", deleteOps);
+                }
+                var optionsOps = divideOperationsByContentType(pathStr, PathItem.HttpMethod.OPTIONS, path.getOptions());
+                if (!optionsOps.isEmpty()) {
+                    path.addExtension("x-options", optionsOps);
+                }
+                var headOps = divideOperationsByContentType(pathStr, PathItem.HttpMethod.HEAD, path.getHead());
+                if (!headOps.isEmpty()) {
+                    path.addExtension("x-head", headOps);
+                }
+                var patchOps = divideOperationsByContentType(pathStr, PathItem.HttpMethod.PATCH, path.getPatch());
+                if (!patchOps.isEmpty()) {
+                    path.addExtension("x-patch", patchOps);
+                }
+                var traceOps = divideOperationsByContentType(pathStr, PathItem.HttpMethod.TRACE, path.getTrace());
+                if (!traceOps.isEmpty()) {
+                    path.addExtension("x-trace", traceOps);
                 }
             }
         }
@@ -1122,6 +1217,13 @@ public abstract class AbstractMicronautJavaCodegen<T extends GeneratorOptionsBui
 
     @Override
     public OperationsMap postProcessOperationsWithModels(OperationsMap objs, List<ModelMap> allModels) {
+
+        if (openAPI.getPaths() != null) {
+            for (var path : openAPI.getPaths().values()) {
+
+            }
+        }
+
         objs = super.postProcessOperationsWithModels(objs, allModels);
 
         Map<String, CodegenModel> models = allModels.stream()
