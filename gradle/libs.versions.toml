@@ -19,6 +19,7 @@ javaparser = "3.26.2"
 commons-codec = "1.17.1"
 guava = "33.3.0-jre"
 spring-boot = "3.3.3"
+quarkus = "3.14.4"
 
 micronaut = "4.6.5"
 micronaut-platform = "4.6.2"
@@ -83,6 +84,7 @@ javaparser = { module = "com.github.javaparser:javaparser-symbol-solver-core", v
 commons-codec = { module = "commons-codec:commons-codec", version.ref = "commons-codec" }
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
 spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
+quarkus-bom = { module = "io.quarkus:quarkus-bom", version.ref = "quarkus" }
 
 openapi-generator = { module = "org.openapitools:openapi-generator", version.ref = "openapi-generator" }
 swagger-parser = { module = "io.swagger:swagger-parser", version.ref = "swagger-parser" }

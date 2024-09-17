@@ -1,0 +1,7 @@
+spring:
+  main:
+    banner-mode: off
+  web:
+    resources:
+      static-locations:
+        - classpath:META-INF/swagger/views/**

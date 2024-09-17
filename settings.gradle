@@ -25,6 +25,7 @@ include 'docs-examples:example-java'
 include 'docs-examples:example-kotlin'
 include 'test-suite-java-client-generator'
 include 'test-suite-java-jaxrs'
+include 'test-suite-java-quarkus'
 include 'test-suite-java-spring'
 include 'test-suite-java-server-generator'
 include 'test-suite-kotlin-kapt-client-generator'
@@ -39,6 +40,7 @@ dependencyResolutionManagement {
     }
     versionCatalogs {
         generator.generate("spring") { from(toml("spring-boot-dependencies")) }
+        generator.generate("quarkus") { from(toml("quarkus-bom")) }
     }
 }
 

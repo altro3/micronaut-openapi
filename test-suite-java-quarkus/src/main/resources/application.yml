@@ -1,0 +1,17 @@
+server:
+  port: 8701
+  servlet:
+    encoding:
+      force-response: true
+
+spring:
+  application:
+    name:
+  main:
+    banner-mode: off
+
+logging:
+  pattern:
+    console: '%cyan(%d{HH:mm:ss.SSS}) %gray([%thread]) %highlight(%-5level) %magenta(%logger{36}) - %msg%n'
+  level:
+    root: info

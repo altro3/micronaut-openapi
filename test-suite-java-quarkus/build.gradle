@@ -1,0 +1,50 @@
+plugins {
+    id("io.micronaut.build.internal.openapi-test-java")
+    id "io.quarkus" version "3.14.4"
+}
+
+sourceSets {
+    test {
+        java {
+            srcDirs += "$buildDir/classes/java"
+        }
+    }
+}
+
+dependencies {
+
+    annotationProcessor(mnJaxrs.micronaut.jaxrs.processor)
+    annotationProcessor(mn.micronaut.inject.java)
+    annotationProcessor(projects.micronautOpenapi)
+
+    compileOnly(projects.micronautOpenapiAnnotations)
+    compileOnly(mn.jackson.annotations)
+    compileOnly(mn.micronaut.inject.java)
+    compileOnly(mnSerde.micronaut.serde.api)
+
+    implementation(quarkus.quarkus.quarkusRest)
+    implementation(quarkus.quarkus.quarkusRestJackson)
+    implementation(quarkus.quarkus.quarkusConfigYaml)
+
+    testCompileOnly(projects.micronautOpenapiAnnotations)
+    testCompileOnly(mn.jackson.annotations)
+    testCompileOnly(mn.micronaut.inject.java)
+    testCompileOnly(mnSerde.micronaut.serde.api)
+
+    testImplementation(quarkus.quarkus.quarkusJunit5)
+    testImplementation(projects.micronautOpenapiCommon)
+
+    testRuntimeOnly(mnLogging.logback.classic)
+    testRuntimeOnly(mnTest.junit.jupiter.engine)
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = "UTF-8"
+    options.incremental = true
+    options.fork = true
+    options.compilerArgs = [
+        '-parameters',
+        '-Xlint:unchecked',
+        '-Xlint:deprecation'
+    ]
+}
