@@ -36,6 +36,16 @@ paths:
             Location:
               schema:
                 type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/coordinates'
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/coordinates'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/MySchema'
 components:
   schemas:
     coordinates:

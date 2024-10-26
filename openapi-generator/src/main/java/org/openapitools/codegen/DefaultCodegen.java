@@ -370,6 +370,8 @@ public class DefaultCodegen implements CodegenConfig {
 
     // Whether to automatically hardcode params that are considered Constants by OpenAPI Spec
     protected boolean autosetConstants = false;
+    protected boolean groupByRequestAndResponseContentType = true;
+    protected boolean groupByResponseContentType = true;
 
     @Override
     public boolean getAddSuffixToDuplicateOperationNicknames() {
@@ -430,8 +432,9 @@ public class DefaultCodegen implements CodegenConfig {
         convertPropertyToBooleanAndWriteBack(CodegenConstants.DISALLOW_ADDITIONAL_PROPERTIES_IF_NOT_PRESENT, this::setDisallowAdditionalPropertiesIfNotPresent);
         convertPropertyToBooleanAndWriteBack(CodegenConstants.ENUM_UNKNOWN_DEFAULT_CASE, this::setEnumUnknownDefaultCase);
         convertPropertyToBooleanAndWriteBack(CodegenConstants.AUTOSET_CONSTANTS, this::setAutosetConstants);
+        convertPropertyToBooleanAndWriteBack("groupByResponseContentType", this::setGroupByResponseContentType);
+        convertPropertyToBooleanAndWriteBack("groupByRequestAndResponseContentType", this::setGroupByRequestAndResponseContentType);
     }
-
 
     /***
      * Preset map builder with commonly used Mustache lambdas.
@@ -1168,42 +1171,112 @@ public class DefaultCodegen implements CodegenConfig {
         }
 
         var additionalOps = new ArrayList<Operation>();
+        divideOperationByRequestBody(path, httpMethod, op, additionalOps);
 
+        // Check responses content types and divide operations by them
+
+        var responses = op.getResponses();
+        if (responses == null || responses.isEmpty()) {
+            return additionalOps;
+        }
+        var allPossibleContentTypes = new ArrayList<String>();
+        for (var responseEntry : responses.entrySet()) {
+            for (var contentType : responseEntry.getValue().getContent().keySet()) {
+                contentType = contentType.toLowerCase();
+                if (!allPossibleContentTypes.contains(contentType)) {
+                    allPossibleContentTypes.add(contentType);
+                }
+            }
+        }
+        if (allPossibleContentTypes.isEmpty() || allPossibleContentTypes.size() == 1) {
+            return additionalOps;
+        }
+
+        var apiResponsesByContentType = new HashMap<String, ApiResponses>();
+        for (var contentType : allPossibleContentTypes) {
+            var apiResponses = new ApiResponses();
+            for (var responseEntry : responses.entrySet()) {
+                var code = responseEntry.getKey();
+                var response = responseEntry.getValue();
+                var mediaType = response.getContent().get(contentType);
+                if (mediaType == null) {
+                    continue;
+                }
+                apiResponses.addApiResponse(code, new ApiResponse()
+                    .description(response.getDescription())
+                    .headers(response.getHeaders())
+                    .links(response.getLinks())
+                    .extensions(response.getExtensions())
+                    .$ref(response.get$ref())
+                    .content(new Content()
+                        .addMediaType(contentType, mediaType)
+                    )
+                );
+            }
+            apiResponsesByContentType.put(contentType, apiResponses);
+        }
+
+        var finalAdditionalOps = new ArrayList<Operation>();
+        divideOperationByResponses(path, httpMethod, op, apiResponsesByContentType, finalAdditionalOps);
+        for (var additionalOp : additionalOps) {
+            finalAdditionalOps.add(additionalOp);
+            divideOperationByResponses(path, httpMethod, additionalOp, apiResponsesByContentType, finalAdditionalOps);
+        }
+
+        return finalAdditionalOps;
+    }
+
+    private void divideOperationByRequestBody(String path, PathItem.HttpMethod httpMethod, Operation op, List<Operation> additionalOps) {
         RequestBody body = op.getRequestBody();
         if (body == null || body.getContent() == null) {
-            return Collections.emptyList();
+            return;
         }
         Content content = body.getContent();
         if (content.size() <= 1) {
-            return Collections.emptyList();
+            return;
         }
         var firstEntry = content.entrySet().iterator().next();
         var mediaTypesToRemove = new ArrayList<String>();
+        var withoutContent = false;
         for (var entry : content.entrySet()) {
-            if (mediaTypesToRemove.contains(entry.getKey()) || entry.getKey().equals(firstEntry.getKey()) || entry.getValue().equals(firstEntry.getValue())) {
+            var contentType = entry.getKey();
+            MediaType mediaType = entry.getValue();
+            if (mediaTypesToRemove.contains(contentType)
+                || contentType.equals(firstEntry.getKey())
+                || (groupByResponseContentType && mediaType.equals(firstEntry.getValue()))) {
                 continue;
             }
             var foundSameOpSignature = false;
-            for (var additionalOp : additionalOps) {
-                RequestBody additionalBody = additionalOp.getRequestBody();
-                if (additionalBody == null || additionalBody.getContent() == null) {
-                    return Collections.emptyList();
-                }
-                for (var addContentEntry : additionalBody.getContent().entrySet()) {
-                    if (addContentEntry.getValue().equals(entry.getValue())) {
-                        foundSameOpSignature = true;
+            // group by response content type
+            if (groupByResponseContentType) {
+                for (var additionalOp : additionalOps) {
+                    RequestBody additionalBody = additionalOp.getRequestBody();
+                    if (additionalBody == null || additionalBody.getContent() == null) {
+                        return;
+                    }
+                    for (var addContentEntry : additionalBody.getContent().entrySet()) {
+                        if (addContentEntry.getValue().equals(mediaType)) {
+                            foundSameOpSignature = true;
+                            break;
+                        }
+                    }
+                    if (foundSameOpSignature) {
+                        additionalBody.getContent().put(contentType, mediaType);
                         break;
                     }
                 }
-                if (foundSameOpSignature) {
-                    additionalBody.getContent().put(entry.getKey(), entry.getValue());
-                    break;
-                }
             }
-            mediaTypesToRemove.add(entry.getKey());
-            if (foundSameOpSignature) {
+            if (withoutContent) {
+                break;
+            }
+            mediaTypesToRemove.add(contentType);
+            if (groupByResponseContentType && foundSameOpSignature) {
                 continue;
             }
+
+            var apiResponsesCopy = new ApiResponses();
+            apiResponsesCopy.putAll(op.getResponses());
+
             additionalOps.add(new Operation()
                 .deprecated(op.getDeprecated())
                 .callbacks(op.getCallbacks())
@@ -1212,7 +1285,7 @@ public class DefaultCodegen implements CodegenConfig {
                 .externalDocs(op.getExternalDocs())
                 .operationId(getOrGenerateOperationId(op, path, httpMethod.name()))
                 .parameters(op.getParameters())
-                .responses(op.getResponses())
+                .responses(apiResponsesCopy)
                 .security(op.getSecurity())
                 .servers(op.getServers())
                 .summary(op.getSummary())
@@ -1221,15 +1294,53 @@ public class DefaultCodegen implements CodegenConfig {
                     .description(body.getDescription())
                     .extensions(body.getExtensions())
                     .content(new Content()
-                        .addMediaType(entry.getKey(), entry.getValue()))
+                        .addMediaType(contentType, mediaType))
                 )
             );
         }
         if (!mediaTypesToRemove.isEmpty()) {
             content.entrySet().removeIf(stringMediaTypeEntry -> mediaTypesToRemove.contains(stringMediaTypeEntry.getKey()));
         }
+    }
 
-        return additionalOps;
+    private void divideOperationByResponses(
+        String path,
+        PathItem.HttpMethod httpMethod,
+        Operation op,
+        Map<String, ApiResponses> apiResponsesByContentType,
+        List<Operation> additionalOps
+    ) {
+        var isFirst = true;
+        for (var entry : apiResponsesByContentType.entrySet()) {
+            var contentType = entry.getKey();
+            var apiResponses = entry.getValue();
+            var requestBody = op.getRequestBody();
+            // group by requestBody contentType
+            if (groupByRequestAndResponseContentType && (requestBody == null || requestBody.getContent() == null || !requestBody.getContent().containsKey(contentType))) {
+                continue;
+            }
+            if (isFirst) {
+                op.setResponses(apiResponses);
+                isFirst = false;
+                continue;
+            }
+
+            additionalOps.add(new Operation()
+                .deprecated(op.getDeprecated())
+                .callbacks(op.getCallbacks())
+                .description(op.getDescription())
+                .extensions(op.getExtensions())
+                .externalDocs(op.getExternalDocs())
+                .operationId(getOrGenerateOperationId(op, path, httpMethod.name()))
+                .parameters(op.getParameters())
+                .responses(apiResponses)
+                .security(op.getSecurity())
+                .servers(op.getServers())
+                .summary(op.getSummary())
+                .tags(op.getTags())
+                .requestBody(requestBody)
+            );
+        }
     }
 
     // override with any special handling of the entire OpenAPI spec document
@@ -1263,7 +1374,7 @@ public class DefaultCodegen implements CodegenConfig {
         // remove \t, \n, \r
         // replace \ with \\
         // replace " with \"
-        // outer unescape to retain the original multi-byte characters
+        // outer unescape to retain the original multibyte characters
         // finally escalate characters avoiding code injection
         return escapeUnsafeCharacters(
             StringEscapeUtils.unescapeJava(
@@ -1289,7 +1400,7 @@ public class DefaultCodegen implements CodegenConfig {
         // remove \t
         // replace \ with \\
         // replace " with \"
-        // outer unescape to retain the original multi-byte characters
+        // outer unescape to retain the original multibyte characters
         // finally escalate characters avoiding code injection
         return escapeUnsafeCharacters(
             StringEscapeUtils.unescapeJava(
@@ -5154,8 +5265,7 @@ public class DefaultCodegen implements CodegenConfig {
 
                     if (op.getExtensions() != null && Boolean.TRUE.equals(op.getExtensions().get("x-internal"))) {
                         // skip operation if x-internal sets to true
-                        LOGGER.info("Operation ({} {} - {}) not generated since x-internal is set to true",
-                            method, expression, op.getOperationId());
+                        LOGGER.info("Operation ({} {} - {}) not generated since x-internal is set to true", method, expression, op.getOperationId());
                     } else {
                         boolean genId = op.getOperationId() == null;
                         if (genId) {
@@ -5727,16 +5837,16 @@ public class DefaultCodegen implements CodegenConfig {
         if (StringUtils.isBlank(operationId)) {
             String tmpPath = path;
             tmpPath = tmpPath.replaceAll("\\{", "");
-            tmpPath = tmpPath.replaceAll("\\}", "");
+            tmpPath = tmpPath.replaceAll("}", "");
             String[] parts = (tmpPath + "/" + httpMethod).split("/");
-            StringBuilder builder = new StringBuilder();
+            var builder = new StringBuilder();
             if ("/".equals(tmpPath)) {
                 // must be root tmpPath
                 builder.append("root");
             }
             for (String part : parts) {
-                if (part.length() > 0) {
-                    if (builder.toString().length() == 0) {
+                if (!part.isEmpty()) {
+                    if (builder.isEmpty()) {
                         part = Character.toLowerCase(part.charAt(0)) + part.substring(1);
                     } else {
                         part = camelize(part);
@@ -8856,6 +8966,14 @@ public class DefaultCodegen implements CodegenConfig {
 
     public void setAutosetConstants(boolean autosetConstants) {
         this.autosetConstants = autosetConstants;
+    }
+
+    public void setGroupByResponseContentType(boolean groupByResponseContentType) {
+        this.groupByResponseContentType = groupByResponseContentType;
+    }
+
+    public void setGroupByRequestAndResponseContentType(boolean groupByRequestAndResponseContentType) {
+        this.groupByRequestAndResponseContentType = groupByRequestAndResponseContentType;
     }
 
     public Boolean getSortParamsByRequiredFlag() {
