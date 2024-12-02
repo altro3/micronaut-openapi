@@ -16,64 +16,62 @@ open class RequestBodyController : RequestBodyApi {
         return request
     }
 
-    override fun sendSimpleModel(simpleModel: SimpleModel?): Mono<SimpleModel> {
-        return Mono.just(simpleModel!!)
+    override fun sendSimpleModel(simpleModel: SimpleModel?): SimpleModel {
+        return simpleModel!!
     }
 
-    override fun sendValidatedCollection(requestBody: List<List<String>>?): Mono<Void> {
-        return Mono.empty()
+    override fun sendValidatedCollection(requestBody: List<List<String>>?) {
     }
 
-    override fun sendListOfSimpleModels(simpleModels: List<SimpleModel>?): Mono<List<SimpleModel>> {
-        return Mono.just(simpleModels!!)
+    override fun sendListOfSimpleModels(simpleModels: List<SimpleModel>?): List<SimpleModel> {
+        return simpleModels!!
     }
 
-    override fun sendModelWithRequiredProperties(modelWithRequiredProperties: ModelWithRequiredProperties?): Mono<ModelWithRequiredProperties> {
-        return Mono.just(modelWithRequiredProperties!!)
+    override fun sendModelWithRequiredProperties(modelWithRequiredProperties: ModelWithRequiredProperties?): ModelWithRequiredProperties {
+        return modelWithRequiredProperties!!
     }
 
-    override fun sendDateModel(dateModel: DateModel?): Mono<DateModel> {
-        return Mono.just(dateModel!!)
+    override fun sendDateModel(dateModel: DateModel?): DateModel {
+        return dateModel!!
     }
 
-    override fun sendEnum(body: String): Mono<ColorEnum> {
-        return Mono.just(fromValue(body.replace("\"", "")))
+    override fun sendEnum(body: String): ColorEnum {
+        return fromValue(body.replace("\"", ""))
     }
 
-    override fun sendEnumList(colorEnums: List<ColorEnum>): Mono<List<ColorEnum>> {
-        return Mono.just(colorEnums)
+    override fun sendEnumList(colorEnums: List<ColorEnum>): List<ColorEnum> {
+        return colorEnums
     }
 
-    override fun sendModelWithMapProperty(modelWithMapProperty: ModelWithMapProperty): Mono<ModelWithMapProperty> {
-        return Mono.just(modelWithMapProperty)
+    override fun sendModelWithMapProperty(modelWithMapProperty: ModelWithMapProperty): ModelWithMapProperty {
+        return modelWithMapProperty
     }
 
-    override fun sendModelWithValidatedListProperty(modelWithValidatedListProperty: ModelWithValidatedListProperty): Mono<Void> {
-        return Mono.empty()
+    override fun sendModelWithValidatedListProperty(modelWithValidatedListProperty: ModelWithValidatedListProperty): Unit {
     }
 
-    override fun sendNestedModel(nestedModel: NestedModel): Mono<NestedModel> {
-        return Mono.just(nestedModel)
+    override fun sendNestedModel(nestedModel: NestedModel): NestedModel {
+        return nestedModel
     }
 
-    override fun sendModelWithInnerEnum(modelWithInnerEnum: ModelWithInnerEnum): Mono<ModelWithInnerEnum> {
-        return Mono.just(modelWithInnerEnum)
+    override fun sendModelWithInnerEnum(modelWithInnerEnum: ModelWithInnerEnum): ModelWithInnerEnum {
+        return modelWithInnerEnum
     }
 
-    override fun sendModelWithDiscriminator(animal: Animal): Mono<Animal> {
-        return Mono.just(animal)
+    override fun sendModelWithDiscriminator(animal: Animal): Animal {
+        return animal
     }
 
-    override fun sendBytes(body: ByteArray?): Mono<ByteArray> {
-        return Mono.just(body!!)
+    override fun sendBytes(body: ByteArray?): ByteArray {
+        return body!!
     }
 
-    override fun sendModelWithEnumList(modelWithEnumList: ModelWithEnumList): Mono<ModelWithEnumList> {
-        return Mono.just(modelWithEnumList)
+    override fun sendModelWithEnumList(modelWithEnumList: ModelWithEnumList): ModelWithEnumList {
+        return modelWithEnumList
     }
 
-    override fun sendFile(file: CompletedFileUpload?): Mono<ByteArray> {
-        return Mono.fromCallable {
+    override fun sendFile(file: CompletedFileUpload?): ByteArray {
+
             val inputStream = file!!.inputStream
             val outputStream = ByteArrayOutputStream()
             outputStream.write("name: ".toByteArray())
@@ -81,7 +79,6 @@ open class RequestBodyController : RequestBodyApi {
             outputStream.write(", content: ".toByteArray())
             inputStream.transferTo(outputStream)
             inputStream.close()
-            outputStream.toByteArray()
-        }
+        return     outputStream.toByteArray()
     }
 }

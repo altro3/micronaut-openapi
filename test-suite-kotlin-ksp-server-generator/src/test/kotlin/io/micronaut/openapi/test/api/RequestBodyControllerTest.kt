@@ -197,10 +197,10 @@ class RequestBodyControllerTest(
         assertEquals(model, response)
     }
 
-    @Disabled("https://github.com/micronaut-projects/micronaut-serialization/issues/768")
+//    @Disabled("https://github.com/micronaut-projects/micronaut-serialization/issues/768")
     @MethodSource("discriminators")
     @ParameterizedTest
-    fun testSendModelWithDiscriminatorChild(discriminatorName: String, model: Animal) {
+    fun testSendModelWithDiscriminatorChild1(discriminatorName: String, model: Animal) {
         val request = HttpRequest.PUT("/sendModelWithDiscriminator", model)
         val response = client.retrieve(request, Argument.of(Animal::class.java), Argument.of(String::class.java))
 

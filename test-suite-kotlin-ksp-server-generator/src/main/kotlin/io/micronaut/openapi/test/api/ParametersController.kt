@@ -15,36 +15,36 @@ import java.time.ZonedDateTime
 @Controller
 open class ParametersController : ParametersApi {
 
-    override fun sendPrimitives(name: String, age: BigDecimal, height: Float, isPositive: Boolean): Mono<SendPrimitivesResponse> {
-        return Mono.just(SendPrimitivesResponse(name, age, height, isPositive))
+    override fun sendPrimitives(name: String, age: BigDecimal, height: Float, isPositive: Boolean): SendPrimitivesResponse {
+        return SendPrimitivesResponse(name, age, height, isPositive)
     }
 
-    override fun sendValidatedPrimitives(name: String?, age: Int?, favoriteNumber: BigDecimal?, height: Double?): Mono<String> {
-        return Mono.just("Success")
+    override fun sendValidatedPrimitives(name: String?, age: Int?, favoriteNumber: BigDecimal?, height: Double?): String {
+        return "Success"
     }
 
-    override fun sendDates(commitDate: LocalDate?, commitDateTime: ZonedDateTime?): Mono<SendDatesResponse> {
-        return Mono.just(SendDatesResponse(commitDate, commitDateTime))
+    override fun sendDates(commitDate: LocalDate?, commitDateTime: ZonedDateTime?): SendDatesResponse {
+        return SendDatesResponse(commitDate, commitDateTime)
     }
 
-    override fun sendParameterEnum(colorParam: ColorEnum?): Mono<ColorEnum> {
-        return Mono.just(colorParam!!)
+    override fun sendParameterEnum(colorParam: ColorEnum?): ColorEnum {
+        return colorParam!!
     }
 
-    override fun getIgnoredHeader(): Mono<String> {
-        return Mono.just("Success")
+    override fun getIgnoredHeader(): String {
+        return "Success"
     }
 
-    override fun sendIgnoredHeader(): Mono<String> {
-        return Mono.just("Success")
+    override fun sendIgnoredHeader(): String {
+        return "Success"
     }
 
-    override fun sendPageQuery(pageable: Pageable): Mono<String> {
-        return Mono.just("(page: ${pageable.number}, size: ${pageable.size}, sort: ${sortToString(pageable.sort)})")
+    override fun sendPageQuery(pageable: Pageable): String {
+        return "(page: ${pageable.number}, size: ${pageable.size}, sort: ${sortToString(pageable.sort)})"
     }
 
-    override fun sendMappedParameter(myFilter: MyFilter): Mono<String> {
-        return Mono.just(myFilter.toString())
+    override fun sendMappedParameter(myFilter: MyFilter): String {
+        return myFilter.toString()
     }
 
     private fun sortToString(sort: Sort): String {

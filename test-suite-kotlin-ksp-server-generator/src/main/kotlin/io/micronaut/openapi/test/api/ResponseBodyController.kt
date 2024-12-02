@@ -7,6 +7,8 @@ import io.micronaut.http.HttpStatus
 import io.micronaut.http.MediaType
 import io.micronaut.http.annotation.Controller
 import io.micronaut.http.exceptions.HttpStatusException
+import io.micronaut.http.multipart.CompletedFileUpload
+import io.micronaut.http.server.netty.multipart.NettyCompletedFileUpload
 import io.micronaut.http.server.types.files.FileCustomizableResponseType
 import io.micronaut.http.server.types.files.StreamedFile
 import io.micronaut.openapi.test.dated.DatedResponse
@@ -14,8 +16,10 @@ import io.micronaut.openapi.test.model.DateModel
 import io.micronaut.openapi.test.model.ModelWithValidatedListProperty
 import io.micronaut.openapi.test.model.SimpleModel
 import io.micronaut.openapi.test.model.StateEnum
+import io.netty.handler.codec.http.multipart.MemoryFileUpload
 import reactor.core.publisher.Mono
 import java.io.ByteArrayInputStream
+import java.nio.charset.StandardCharsets
 import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.time.ZoneId
@@ -24,52 +28,54 @@ import java.time.ZonedDateTime
 @Controller
 open class ResponseBodyController : ResponseBodyApi {
 
-    override fun getSimpleModel(): Mono<SimpleModel> {
-        return Mono.just(SIMPLE_MODEL)
+    override fun getSimpleModel(): SimpleModel {
+        return SIMPLE_MODEL
     }
 
-    override fun getDateTime(): Mono<ZonedDateTime> {
-        return Mono.just(DATE_TIME_INSTANCE)
+    override fun getDateTime(): ZonedDateTime {
+        return DATE_TIME_INSTANCE
     }
 
-    override fun getDateModel(): Mono<DateModel> {
-        return Mono.just(DATE_MODEL_INSTANCE)
+    override fun getDateModel(): DateModel {
+        return DATE_MODEL_INSTANCE
     }
 
-    override fun getPaginatedSimpleModel(pageable: Pageable): Mono<Page<SimpleModel>> {
-        return Mono.just(Page.of(SIMPLE_MODELS, pageable, SIMPLE_MODELS.size.toLong()))
+    override fun getPaginatedSimpleModel(pageable: Pageable): Page<SimpleModel> {
+        return Page.of(SIMPLE_MODELS, pageable, SIMPLE_MODELS.size.toLong())
     }
 
-    override fun getDatedSimpleModel(): Mono<DatedResponse<SimpleModel>> {
-        return Mono.just(DatedResponse(SIMPLE_MODEL, LAST_MODIFIED_DATE))
+    override fun getDatedSimpleModel(): DatedResponse<SimpleModel> {
+        return DatedResponse(SIMPLE_MODEL, LAST_MODIFIED_DATE)
     }
 
-    override fun getSimpleModelWithNonStandardStatus(): Mono<HttpResponse<SimpleModel>> {
-        return Mono.just(HttpResponse.created(SIMPLE_MODEL))
+    override fun getSimpleModelWithNonStandardStatus(): HttpResponse<SimpleModel> {
+        return HttpResponse.created(SIMPLE_MODEL)
     }
 
-    override fun getDatedSimpleModelWithNonMappedHeader(): Mono<HttpResponse<DatedResponse<SimpleModel>>> {
+    override fun getDatedSimpleModelWithNonMappedHeader(): HttpResponse<DatedResponse<SimpleModel>> {
         val datedResponse = DatedResponse(SIMPLE_MODEL, LAST_MODIFIED_DATE)
-        return Mono.just(HttpResponse.ok(datedResponse)
-                .header("custom-header", "custom-value"))
+        return HttpResponse.ok(datedResponse)
+                .header("custom-header", "custom-value")
     }
 
-    override fun getSimpleModelWithNonMappedHeader(): Mono<HttpResponse<SimpleModel>> {
-        return Mono.just(HttpResponse.ok(SIMPLE_MODEL)
-                .header("custom-header", "custom-value-2"))
+    override fun getSimpleModelWithNonMappedHeader(): HttpResponse<SimpleModel> {
+        return HttpResponse.ok(SIMPLE_MODEL)
+                .header("custom-header", "custom-value-2")
     }
 
-    override fun getErrorResponse(): Mono<Void> {
-        return Mono.fromCallable { throw HttpStatusException(HttpStatus.NOT_FOUND, "This is the error") }
+    override fun getErrorResponse(): Unit {
+        throw HttpStatusException(HttpStatus.NOT_FOUND, "This is the error")
     }
 
-    override fun getFile(): Mono<FileCustomizableResponseType> {
+    override fun getFile(): CompletedFileUpload {
         val stream = ByteArrayInputStream("My file content".toByteArray())
-        return Mono.just(StreamedFile(stream, MediaType.TEXT_PLAIN_TYPE))
+        val fileUpload = MemoryFileUpload("", "", "", "", StandardCharsets.UTF_8, 12)
+        fileUpload.setContent(stream)
+        return NettyCompletedFileUpload(fileUpload)
     }
 
-    override fun getModelWithValidatedList(): Mono<ModelWithValidatedListProperty> {
-        return Mono.just(ModelWithValidatedListProperty(objectList = listOf(SimpleModel(color = "a"))))
+    override fun getModelWithValidatedList(): ModelWithValidatedListProperty {
+        return ModelWithValidatedListProperty(objectList = listOf(SimpleModel(color = "a")))
     }
 
     companion object {

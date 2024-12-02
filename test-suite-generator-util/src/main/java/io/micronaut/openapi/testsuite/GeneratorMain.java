@@ -78,6 +78,7 @@ public class GeneratorMain {
         String modelPrefix = args[15];
         String modelSuffix = args[16];
         var auth = Boolean.parseBoolean(args[17]);
+        var reactive = Boolean.parseBoolean(args[18]);
 
         var builder = MicronautCodeGeneratorEntryPoint.builder()
             .withDefinitionFile(definitionFile)
@@ -90,8 +91,8 @@ public class GeneratorMain {
                     .withModelPackage("io.micronaut.openapi.test.model")
                     .withBeanValidation(true)
                     .withUseEnumCaseInsensitive(true)
+                    .withReactive(reactive)
                     .withOptional(true)
-                    .withReactive(true)
                     .withApiNamePrefix(apiPrefix)
                     .withApiNameSuffix(apiSuffix)
                     .withModelNamePrefix(modelPrefix)

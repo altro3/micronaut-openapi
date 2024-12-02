@@ -68,6 +68,10 @@ public abstract class OpenApiGeneratorTask extends DefaultTask {
     public abstract Property<Boolean> getKsp();
 
     @Input
+    @Optional
+    public abstract Property<Boolean> getReactive();
+
+    @Input
     public abstract Property<Boolean> getUseOneOfInterfaces();
 
     @Input
@@ -159,6 +163,7 @@ public abstract class OpenApiGeneratorTask extends DefaultTask {
             args.add(getModelNamePrefix().getOrElse(""));
             args.add(getModelNameSuffix().getOrElse(""));
             args.add(Boolean.toString(getAuth().getOrElse(false)));
+            args.add(Boolean.toString(getReactive().getOrElse(true)));
             javaexec.args(args);
         });
     }
