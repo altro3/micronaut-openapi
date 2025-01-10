@@ -15,14 +15,13 @@
  */
 package io.micronaut.openapi.swagger.core.util;
 
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonDeserializer;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.databind.node.TextNode;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import io.micronaut.openapi.OpenApiUtils;
 import io.micronaut.openapi.SimpleSchema;
 import io.swagger.v3.oas.models.media.ArraySchema;
@@ -41,12 +40,14 @@ import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.media.StringSchema;
 import io.swagger.v3.oas.models.media.UUIDSchema;
 
-import java.io.IOException;
-import java.util.Collections;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 
 /**
  * This class is copied from swagger-core library.
@@ -68,7 +69,7 @@ public class ModelDeserializer extends JsonDeserializer<Schema> {
             return schema;
         }
         if (node.isBoolean()) {
-            return new Schema<>().booleanSchemaValue(node.booleanValue());
+            return new Schema().booleanSchemaValue(node.booleanValue());
         }
 
         List<String> composed = List.of("allOf", "anyOf", "oneOf");
@@ -111,7 +112,7 @@ public class ModelDeserializer extends JsonDeserializer<Schema> {
                 schema = deserializeObjectSchema(node, true);
             }
         } else if (node.get("$ref") != null) {
-            schema = new Schema<>().$ref(node.get("$ref").asText());
+            schema = new Schema().$ref(node.get("$ref").asText());
         } else { // assume object
             schema = deserializeObjectSchema(node, false);
         }
@@ -162,7 +163,7 @@ public class ModelDeserializer extends JsonDeserializer<Schema> {
 
     private Schema deserializeJsonSchema(JsonNode node) {
         if (node.isBoolean()) {
-            return new Schema<>().booleanSchemaValue(node.booleanValue());
+            return new Schema().booleanSchemaValue(node.booleanValue());
         }
         JsonNode additionalProperties = node.get("additionalProperties");
         JsonNode type = node.get("type");

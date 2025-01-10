@@ -317,6 +317,14 @@ public final class SchemaDefinitionUtils {
         } else {
             JavadocDescription javadoc = type != null ? Utils.getJavadocParser().parse(type.getDescription()) : null;
             populateSchemaProperties(openAPI, context, type, typeArgs, schema, mediaTypes, javadoc, jsonViewClass);
+            if (TYPE_STRING.equals(schema.getType()) && CollectionUtils.isNotEmpty(schema.getProperties())) {
+                var newSchema = setSpecVersion(new Schema<>());
+                for (var entry : schema.getProperties().entrySet()) {
+                    newSchema.addProperty(entry.getKey(), entry.getValue());
+                }
+                newSchema.nullable(schema.getNullable());
+                schema = newSchema;
+            }
             checkAllOf(schema);
         }
         return schema;
@@ -445,6 +453,15 @@ public final class SchemaDefinitionUtils {
                         }
 
                         populateSchemaProperties(openAPI, context, type, typeArgs, schema, mediaTypes, javadoc, jsonViewClass);
+                        if (TYPE_STRING.equals(schema.getType()) && CollectionUtils.isNotEmpty(schema.getProperties())) {
+                            var newSchema = setSpecVersion(new Schema<>());
+                            for (var entry : (Set<Map.Entry<String, Schema>>) schema.getProperties().entrySet()) {
+                                newSchema.addProperty(entry.getKey(), entry.getValue());
+                            }
+                            newSchema.nullable(schema.getNullable());
+                            schema = newSchema;
+                            schemas.put(schemaName, schema);
+                        }
                         checkAllOf(schema);
                     }
                     if (isDeprecated(type) && schema != null) {
@@ -1682,7 +1699,7 @@ public final class SchemaDefinitionUtils {
             propertyName = normalizePropertyName(propertyName, classElement, elementType);
             propertySchema.setRequired(null);
             Schema<?> propertySchemaFinal = propertySchema;
-            parentSchema = addProperty(parentSchema, propertyName, propertySchema, required);
+            addProperty(parentSchema, propertyName, propertySchema, required);
             if (schemaAnn != null) {
                 schemaAnn.stringValue(PROP_DEFAULT_VALUE)
                     .ifPresent(value -> {
@@ -3236,7 +3253,7 @@ public final class SchemaDefinitionUtils {
                     propertySchema = Utils.getJsonMapper().readValue(Utils.getJsonMapper().writeValueAsString(prop.getValue()), Schema.class);
                     propertySchema.setName(propertyName);
                 }
-                parentSchema = addProperty(parentSchema, propertyName, propertySchema, isRequired);
+                addProperty(parentSchema, propertyName, propertySchema, isRequired);
             } catch (IOException e) {
                 warn("Exception cloning property " + e.getMessage(), context);
             }
@@ -3259,10 +3276,7 @@ public final class SchemaDefinitionUtils {
         return false;
     }
 
-    private static Schema<?> addProperty(Schema<?> parentSchema, String name, Schema<?> propertySchema, boolean required) {
-        if (parentSchema.getType() != null && parentSchema.getType().equals(TYPE_STRING)) {
-            parentSchema = new Schema<>();
-        }
+    private static void addProperty(Schema<?> parentSchema, String name, Schema<?> propertySchema, boolean required) {
         parentSchema.addProperty(name, propertySchema);
         if (required) {
             List<String> requiredList = parentSchema.getRequired();
@@ -3271,7 +3285,6 @@ public final class SchemaDefinitionUtils {
                 parentSchema.addRequiredItem(name);
             }
         }
-        return parentSchema;
     }
 
     private static Map<String, Object> getDiscriminatorMap(Map<CharSequence, Object> newValues) {

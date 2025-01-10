@@ -50,6 +50,7 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
@@ -309,16 +310,16 @@ public enum PrimitiveType {
             Locale.class
         );
 
-        KEY_CLASSES = Map.copyOf(keyClasses);
+        KEY_CLASSES = Collections.unmodifiableMap(keyClasses);
 
         final var multiKeyClasses = new HashMap<Class<?>, Collection<PrimitiveType>>();
         addMultiKeys(multiKeyClasses, BYTE, byte[].class);
         addMultiKeys(multiKeyClasses, BINARY, byte[].class);
-        MULTI_KEY_CLASSES = Map.copyOf(multiKeyClasses);
+        MULTI_KEY_CLASSES = Collections.unmodifiableMap(multiKeyClasses);
 
         final var baseClasses = new HashMap<Class<?>, PrimitiveType>();
         addKeys(baseClasses, DATE_TIME, Date.class, Calendar.class);
-        BASE_CLASSES = Map.copyOf(baseClasses);
+        BASE_CLASSES = Collections.unmodifiableMap(baseClasses);
 
         final var externalClasses = new HashMap<String, PrimitiveType>();
         addKeys(externalClasses, DATE, "org.joda.time.LocalDate", LocalDate.class.getName());
@@ -331,7 +332,7 @@ public enum PrimitiveType {
             "org.joda.time.LocalDateTime",
             "org.joda.time.ReadableDateTime",
             "org.joda.time.DateTime");
-        EXTERNAL_CLASSES = Map.copyOf(externalClasses);
+        EXTERNAL_CLASSES = Collections.unmodifiableMap(externalClasses);
 
         var names = new TreeMap<String, PrimitiveType>(String.CASE_INSENSITIVE_ORDER);
         for (PrimitiveType item : values()) {
@@ -342,7 +343,7 @@ public enum PrimitiveType {
         }
         addKeys(names, INT, "int");
         addKeys(names, OBJECT, "object");
-        NAMES = Map.copyOf(names);
+        NAMES = Collections.unmodifiableMap(names);
     }
 
     PrimitiveType(Class<?> keyClass) {

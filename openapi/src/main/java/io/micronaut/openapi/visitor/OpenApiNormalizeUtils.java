@@ -138,6 +138,15 @@ public final class OpenApiNormalizeUtils {
                 if (paramSchema == null) {
                     continue;
                 }
+                if (TYPE_STRING.equals(paramSchema.getType()) && CollectionUtils.isNotEmpty(paramSchema.getProperties())) {
+                    var newSchema = setSpecVersion(PrimitiveType.OBJECT.createProperty());
+                    for (var entryProp : paramSchema.getProperties().entrySet()) {
+                        newSchema.addProperty(entryProp.getKey(), entryProp.getValue());
+                    }
+                    newSchema.setNullable(paramSchema.getNullable());
+                    parameter.setSchema(newSchema);
+                    paramSchema = newSchema;
+                }
                 Schema<?> normalizedSchema = normalizeSchema(paramSchema, context);
                 if (normalizedSchema != null) {
                     parameter.setSchema(normalizedSchema);
@@ -211,6 +220,14 @@ public final class OpenApiNormalizeUtils {
             if (mediaTypeSchema == null) {
                 continue;
             }
+            if (TYPE_STRING.equals(mediaTypeSchema.getType()) && CollectionUtils.isNotEmpty(mediaTypeSchema.getProperties())) {
+                var newSchema = setSpecVersion(new Schema<>());
+                for (var entryProp : mediaTypeSchema.getProperties().entrySet()) {
+                    newSchema.addProperty(entryProp.getKey(), entryProp.getValue());
+                }
+                mediaType.setSchema(newSchema);
+                mediaTypeSchema = newSchema;
+            }
             Schema<?> normalizedSchema = normalizeSchema(mediaTypeSchema, context);
             if (normalizedSchema != null) {
                 mediaType.setSchema(normalizedSchema);
@@ -223,6 +240,15 @@ public final class OpenApiNormalizeUtils {
                 var paramNormalizedSchemas = new HashMap<String, Schema>();
                 for (var paramEntry : paramSchemas.entrySet()) {
                     Schema<?> paramSchema = paramEntry.getValue();
+                    if (TYPE_STRING.equals(paramSchema.getType()) && CollectionUtils.isNotEmpty(paramSchema.getProperties())) {
+                        var newSchema = setSpecVersion(new Schema<>());
+                        for (var entryProp : paramSchema.getProperties().entrySet()) {
+                            newSchema.addProperty(entryProp.getKey(), entryProp.getValue());
+                        }
+                        newSchema.nullable(paramSchema.getNullable());
+                        paramEntry.setValue(newSchema);
+                        paramSchema = newSchema;
+                    }
                     Schema<?> paramNormalizedSchema = normalizeSchema(paramSchema, context);
                     if (paramNormalizedSchema != null) {
                         paramNormalizedSchemas.put(paramEntry.getKey(), paramNormalizedSchema);
@@ -415,6 +441,15 @@ public final class OpenApiNormalizeUtils {
                 var paramNormalizedSchemas = new HashMap<String, Schema>();
                 for (Map.Entry<String, Schema> paramEntry : paramSchemas.entrySet()) {
                     Schema<?> paramSchema = paramEntry.getValue();
+                    if (TYPE_STRING.equals(paramSchema.getType()) && CollectionUtils.isNotEmpty(paramSchema.getProperties())) {
+                        var newSchema = setSpecVersion(new Schema<>());
+                        for (var entryProp : paramSchema.getProperties().entrySet()) {
+                            newSchema.addProperty(entryProp.getKey(), entryProp.getValue());
+                        }
+                        newSchema.setNullable(paramSchema.getNullable());
+                        paramEntry.setValue(newSchema);
+                        paramSchema = newSchema;
+                    }
                     Schema<?> paramNormalizedSchema = normalizeSchema(paramSchema, context);
                     if (paramNormalizedSchema != null) {
                         paramNormalizedSchemas.put(paramEntry.getKey(), paramNormalizedSchema);
