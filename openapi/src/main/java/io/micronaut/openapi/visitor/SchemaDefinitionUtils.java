@@ -84,7 +84,6 @@ import io.swagger.v3.oas.models.media.ComposedSchema;
 import io.swagger.v3.oas.models.media.Discriminator;
 import io.swagger.v3.oas.models.media.MapSchema;
 import io.swagger.v3.oas.models.media.Schema;
-import io.swagger.v3.oas.models.media.StringSchema;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 
 import javax.xml.datatype.XMLGregorianCalendar;
@@ -223,6 +222,7 @@ import static io.micronaut.openapi.visitor.ProtoUtils.protobufTypeSchema;
 import static io.micronaut.openapi.visitor.SchemaUtils.TYPE_ARRAY;
 import static io.micronaut.openapi.visitor.SchemaUtils.TYPE_OBJECT;
 import static io.micronaut.openapi.visitor.SchemaUtils.appendSchema;
+import static io.micronaut.openapi.visitor.SchemaUtils.createStringSchema;
 import static io.micronaut.openapi.visitor.SchemaUtils.getSchemaByRef;
 import static io.micronaut.openapi.visitor.SchemaUtils.isEmptySchema;
 import static io.micronaut.openapi.visitor.SchemaUtils.processExtensions;
@@ -923,7 +923,7 @@ public final class SchemaDefinitionUtils {
                 } else if (type.isAssignable(URI.class)) {
                     schema = setSpecVersion(PrimitiveType.URI.createProperty());
                 } else if (type.isAssignable(Character.class) || type.isAssignable(char.class)) {
-                    schema = setSpecVersion(PrimitiveType.STRING.createProperty());
+                    schema = setSpecVersion(createStringSchema());
                 } else if (type.isAssignable(Integer.class) || type.isAssignable(int.class)
                     || type.isAssignable(Short.class) || type.isAssignable(short.class)
                     || type.isAssignable(OptionalInt.class)
@@ -950,11 +950,11 @@ public final class SchemaDefinitionUtils {
                     || type.isAssignable(OffsetDateTime.class)
                     || type.isAssignable(Instant.class)
                     || type.isAssignable(XMLGregorianCalendar.class)) {
-                    schema = setSpecVersion(new StringSchema().format("date-time"));
+                    schema = setSpecVersion(createStringSchema().format("date-time"));
                 } else if (type.isAssignable(LocalDate.class)) {
-                    schema = setSpecVersion(new StringSchema().format("date"));
+                    schema = setSpecVersion(createStringSchema().format("date"));
                 } else if (type.isAssignable(LocalTime.class)) {
-                    schema = setSpecVersion(new StringSchema().format("partial-time"));
+                    schema = setSpecVersion(createStringSchema().format("partial-time"));
                 } else if (type.isAssignable(Number.class)) {
                     schema = setSpecVersion(PrimitiveType.NUMBER.createProperty());
                 } else if (type.getName().equals(Object.class.getName())) {
@@ -3260,7 +3260,8 @@ public final class SchemaDefinitionUtils {
     }
 
     private static void addProperty(Schema<?> parentSchema, String name, Schema<?> propertySchema, boolean required) {
-        parentSchema.addProperty(name, propertySchema);
+        parentSchema.type(TYPE_OBJECT)
+            .addProperty(name, propertySchema);
         if (required) {
             List<String> requiredList = parentSchema.getRequired();
             // Check for duplicates

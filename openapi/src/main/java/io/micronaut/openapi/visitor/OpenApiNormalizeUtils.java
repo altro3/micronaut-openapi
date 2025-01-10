@@ -29,7 +29,6 @@ import io.swagger.v3.oas.models.examples.Example;
 import io.swagger.v3.oas.models.headers.Header;
 import io.swagger.v3.oas.models.media.Content;
 import io.swagger.v3.oas.models.media.Schema;
-import io.swagger.v3.oas.models.media.StringSchema;
 import io.swagger.v3.oas.models.parameters.Parameter;
 import io.swagger.v3.oas.models.responses.ApiResponse;
 
@@ -46,6 +45,7 @@ import static io.micronaut.openapi.visitor.SchemaUtils.EMPTY_SIMPLE_SCHEMA;
 import static io.micronaut.openapi.visitor.SchemaUtils.TYPE_OBJECT;
 import static io.micronaut.openapi.visitor.SchemaUtils.TYPE_STRING;
 import static io.micronaut.openapi.visitor.SchemaUtils.appendSchema;
+import static io.micronaut.openapi.visitor.SchemaUtils.createStringSchema;
 import static io.micronaut.openapi.visitor.SchemaUtils.isEmptySchema;
 import static io.micronaut.openapi.visitor.SchemaUtils.setSpecVersion;
 
@@ -181,7 +181,7 @@ public final class OpenApiNormalizeUtils {
             }
             Schema<?> headerSchema = header.getSchema();
             if (headerSchema == null) {
-                headerSchema = setSpecVersion(new StringSchema());
+                headerSchema = setSpecVersion(createStringSchema());
                 header.setSchema(headerSchema);
             }
             Schema<?> normalizedSchema = normalizeSchema(headerSchema, context);

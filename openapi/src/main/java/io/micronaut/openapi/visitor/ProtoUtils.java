@@ -24,6 +24,7 @@ import io.swagger.v3.oas.models.media.Schema;
 import java.util.ArrayList;
 import java.util.List;
 
+import static io.micronaut.openapi.visitor.SchemaUtils.createStringSchema;
 import static io.micronaut.openapi.visitor.SchemaUtils.setNullable;
 import static io.micronaut.openapi.visitor.SchemaUtils.setSpecVersion;
 
@@ -129,7 +130,7 @@ public final class ProtoUtils {
                 return setNullable(setSpecVersion(PrimitiveType.BOOLEAN.createProperty()));
             }
             case "com.google.protobuf.StringValueOrBuilder" -> {
-                return setNullable(setSpecVersion(PrimitiveType.STRING.createProperty()));
+                return setNullable(setSpecVersion(createStringSchema()));
             }
             case "com.google.protobuf.Int32ValueOrBuilder",
                  "com.google.protobuf.UInt32ValueOrBuilder" -> {

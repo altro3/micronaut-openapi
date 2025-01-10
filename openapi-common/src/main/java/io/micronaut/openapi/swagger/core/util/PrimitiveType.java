@@ -25,7 +25,6 @@ import io.swagger.v3.oas.models.media.FileSchema;
 import io.swagger.v3.oas.models.media.IntegerSchema;
 import io.swagger.v3.oas.models.media.NumberSchema;
 import io.swagger.v3.oas.models.media.Schema;
-import io.swagger.v3.oas.models.media.StringSchema;
 import io.swagger.v3.oas.models.media.UUIDSchema;
 
 import java.io.File;
@@ -50,7 +49,6 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
@@ -74,7 +72,8 @@ public enum PrimitiveType {
     STRING(String.class, "string") {
         @Override
         public Schema<?> createProperty() {
-            return new StringSchema();
+            return new Schema<>()
+                .type("string");
         }
     },
     BOOLEAN(Boolean.class, "boolean") {
@@ -89,7 +88,9 @@ public enum PrimitiveType {
             if (
                 (System.getProperty(Schema.BINARY_STRING_CONVERSION_PROPERTY) != null && System.getProperty(Schema.BINARY_STRING_CONVERSION_PROPERTY).equals(Schema.BynaryStringConversion.BINARY_STRING_CONVERSION_STRING_SCHEMA.toString())) ||
                     (System.getenv(Schema.BINARY_STRING_CONVERSION_PROPERTY) != null && System.getenv(Schema.BINARY_STRING_CONVERSION_PROPERTY).equals(Schema.BynaryStringConversion.BINARY_STRING_CONVERSION_STRING_SCHEMA.toString()))) {
-                return new StringSchema().format("byte");
+                return new Schema<>()
+                    .type("string")
+                    .format("byte");
             }
             return new ByteArraySchema();
         }
@@ -100,7 +101,9 @@ public enum PrimitiveType {
             if (
                 (System.getProperty(Schema.BINARY_STRING_CONVERSION_PROPERTY) != null && System.getProperty(Schema.BINARY_STRING_CONVERSION_PROPERTY).equals(Schema.BynaryStringConversion.BINARY_STRING_CONVERSION_STRING_SCHEMA.toString())) ||
                     (System.getenv(Schema.BINARY_STRING_CONVERSION_PROPERTY) != null && System.getenv(Schema.BINARY_STRING_CONVERSION_PROPERTY).equals(Schema.BynaryStringConversion.BINARY_STRING_CONVERSION_STRING_SCHEMA.toString()))) {
-                return new StringSchema().format("binary");
+                return new Schema<>()
+                    .type("string")
+                    .format("binary");
             }
             return new BinarySchema();
         }
@@ -108,19 +111,25 @@ public enum PrimitiveType {
     URI(java.net.URI.class, "uri") {
         @Override
         public Schema<?> createProperty() {
-            return new StringSchema().format("uri");
+            return new Schema<>()
+                .type("string")
+                .format("uri");
         }
     },
     URL(java.net.URL.class, "url") {
         @Override
         public Schema<?> createProperty() {
-            return new StringSchema().format("url");
+            return new Schema<>()
+                .type("string")
+                .format("url");
         }
     },
     EMAIL(String.class, "email") {
         @Override
         public Schema<?> createProperty() {
-            return new StringSchema().format("email");
+            return new Schema<>()
+                .type("string")
+                .format("email");
         }
     },
     UUID(java.util.UUID.class, "uuid") {
@@ -186,7 +195,9 @@ public enum PrimitiveType {
     PARTIAL_TIME(LocalTime.class, "partial-time") {
         @Override
         public Schema<?> createProperty() {
-            return new StringSchema().format("partial-time");
+            return new Schema<>()
+                .type("string")
+                .format("partial-time");
         }
     },
     FILE(File.class, "file") {
@@ -310,16 +321,16 @@ public enum PrimitiveType {
             Locale.class
         );
 
-        KEY_CLASSES = Collections.unmodifiableMap(keyClasses);
+        KEY_CLASSES = Map.copyOf(keyClasses);
 
         final var multiKeyClasses = new HashMap<Class<?>, Collection<PrimitiveType>>();
         addMultiKeys(multiKeyClasses, BYTE, byte[].class);
         addMultiKeys(multiKeyClasses, BINARY, byte[].class);
-        MULTI_KEY_CLASSES = Collections.unmodifiableMap(multiKeyClasses);
+        MULTI_KEY_CLASSES = Map.copyOf(multiKeyClasses);
 
         final var baseClasses = new HashMap<Class<?>, PrimitiveType>();
         addKeys(baseClasses, DATE_TIME, Date.class, Calendar.class);
-        BASE_CLASSES = Collections.unmodifiableMap(baseClasses);
+        BASE_CLASSES = Map.copyOf(baseClasses);
 
         final var externalClasses = new HashMap<String, PrimitiveType>();
         addKeys(externalClasses, DATE, "org.joda.time.LocalDate", LocalDate.class.getName());
@@ -332,7 +343,7 @@ public enum PrimitiveType {
             "org.joda.time.LocalDateTime",
             "org.joda.time.ReadableDateTime",
             "org.joda.time.DateTime");
-        EXTERNAL_CLASSES = Collections.unmodifiableMap(externalClasses);
+        EXTERNAL_CLASSES = Map.copyOf(externalClasses);
 
         var names = new TreeMap<String, PrimitiveType>(String.CASE_INSENSITIVE_ORDER);
         for (PrimitiveType item : values()) {
@@ -343,7 +354,7 @@ public enum PrimitiveType {
         }
         addKeys(names, INT, "int");
         addKeys(names, OBJECT, "object");
-        NAMES = Collections.unmodifiableMap(names);
+        NAMES = Map.copyOf(names);
     }
 
     PrimitiveType(Class<?> keyClass) {

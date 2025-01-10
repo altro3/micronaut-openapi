@@ -58,7 +58,6 @@ import io.micronaut.openapi.OpenApiUtils;
 import io.micronaut.openapi.annotation.OpenAPIDecorator;
 import io.micronaut.openapi.annotation.OpenAPIGroup;
 import io.micronaut.openapi.javadoc.JavadocDescription;
-import io.micronaut.openapi.swagger.core.util.PrimitiveType;
 import io.micronaut.openapi.visitor.group.EndpointGroupInfo;
 import io.micronaut.openapi.visitor.group.EndpointInfo;
 import io.micronaut.openapi.visitor.group.GroupProperties;
@@ -177,6 +176,7 @@ import static io.micronaut.openapi.visitor.SchemaDefinitionUtils.toValueMap;
 import static io.micronaut.openapi.visitor.SchemaUtils.COMPONENTS_CALLBACKS_PREFIX;
 import static io.micronaut.openapi.visitor.SchemaUtils.TYPE_OBJECT;
 import static io.micronaut.openapi.visitor.SchemaUtils.appendSchema;
+import static io.micronaut.openapi.visitor.SchemaUtils.createStringSchema;
 import static io.micronaut.openapi.visitor.SchemaUtils.getOperationOnPathItem;
 import static io.micronaut.openapi.visitor.SchemaUtils.isIgnoredHeader;
 import static io.micronaut.openapi.visitor.SchemaUtils.processExtensions;
@@ -551,7 +551,7 @@ public abstract class AbstractOpenApiEndpointVisitor extends AbstractOpenApiVisi
                 .in(ParameterIn.PATH.toString())
                 .name(varName)
                 .required(true)
-                .schema(PrimitiveType.STRING.createProperty()));
+                .schema(createStringSchema()));
         }
 
         for (var entry : queryParams.entrySet()) {
@@ -564,7 +564,7 @@ public abstract class AbstractOpenApiEndpointVisitor extends AbstractOpenApiVisi
             operation.addParametersItem(new Parameter()
                 .in(ParameterIn.QUERY.toString())
                 .name(varName)
-                .schema(PrimitiveType.STRING.createProperty()));
+                .schema(createStringSchema()));
         }
     }
 
@@ -2072,7 +2072,7 @@ public abstract class AbstractOpenApiEndpointVisitor extends AbstractOpenApiVisi
                 .in(in)
                 .description("API version")
                 .name(parameterName)
-                .schema(setSpecVersion(PrimitiveType.STRING.createProperty()));
+                .schema(setSpecVersion(createStringSchema()));
 
             swaggerOperation.addParametersItem(parameter);
         }
