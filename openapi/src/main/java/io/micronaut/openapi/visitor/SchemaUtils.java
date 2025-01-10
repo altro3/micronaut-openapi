@@ -141,10 +141,6 @@ public final class SchemaUtils {
     private SchemaUtils() {
     }
 
-    public static Schema createStringSchema() {
-        return new Schema<>().type(TYPE_STRING);
-    }
-
     public static boolean isEmptySchema(Schema<?> schema) {
         return ALL_EMPTY_SCHEMAS.contains(schema);
     }

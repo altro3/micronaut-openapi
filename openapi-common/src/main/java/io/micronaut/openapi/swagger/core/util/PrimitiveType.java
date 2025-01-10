@@ -25,6 +25,7 @@ import io.swagger.v3.oas.models.media.FileSchema;
 import io.swagger.v3.oas.models.media.IntegerSchema;
 import io.swagger.v3.oas.models.media.NumberSchema;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.media.StringSchema;
 import io.swagger.v3.oas.models.media.UUIDSchema;
 
 import java.io.File;
@@ -72,8 +73,7 @@ public enum PrimitiveType {
     STRING(String.class, "string") {
         @Override
         public Schema<?> createProperty() {
-            return new Schema<>()
-                .type("string");
+            return new StringSchema();
         }
     },
     BOOLEAN(Boolean.class, "boolean") {
@@ -88,9 +88,7 @@ public enum PrimitiveType {
             if (
                 (System.getProperty(Schema.BINARY_STRING_CONVERSION_PROPERTY) != null && System.getProperty(Schema.BINARY_STRING_CONVERSION_PROPERTY).equals(Schema.BynaryStringConversion.BINARY_STRING_CONVERSION_STRING_SCHEMA.toString())) ||
                     (System.getenv(Schema.BINARY_STRING_CONVERSION_PROPERTY) != null && System.getenv(Schema.BINARY_STRING_CONVERSION_PROPERTY).equals(Schema.BynaryStringConversion.BINARY_STRING_CONVERSION_STRING_SCHEMA.toString()))) {
-                return new Schema<>()
-                    .type("string")
-                    .format("byte");
+                return new StringSchema().format("byte");
             }
             return new ByteArraySchema();
         }
@@ -101,9 +99,7 @@ public enum PrimitiveType {
             if (
                 (System.getProperty(Schema.BINARY_STRING_CONVERSION_PROPERTY) != null && System.getProperty(Schema.BINARY_STRING_CONVERSION_PROPERTY).equals(Schema.BynaryStringConversion.BINARY_STRING_CONVERSION_STRING_SCHEMA.toString())) ||
                     (System.getenv(Schema.BINARY_STRING_CONVERSION_PROPERTY) != null && System.getenv(Schema.BINARY_STRING_CONVERSION_PROPERTY).equals(Schema.BynaryStringConversion.BINARY_STRING_CONVERSION_STRING_SCHEMA.toString()))) {
-                return new Schema<>()
-                    .type("string")
-                    .format("binary");
+                return new StringSchema().format("binary");
             }
             return new BinarySchema();
         }
@@ -111,25 +107,19 @@ public enum PrimitiveType {
     URI(java.net.URI.class, "uri") {
         @Override
         public Schema<?> createProperty() {
-            return new Schema<>()
-                .type("string")
-                .format("uri");
+            return new StringSchema().format("uri");
         }
     },
     URL(java.net.URL.class, "url") {
         @Override
         public Schema<?> createProperty() {
-            return new Schema<>()
-                .type("string")
-                .format("url");
+            return new StringSchema().format("url");
         }
     },
     EMAIL(String.class, "email") {
         @Override
         public Schema<?> createProperty() {
-            return new Schema<>()
-                .type("string")
-                .format("email");
+            return new StringSchema().format("email");
         }
     },
     UUID(java.util.UUID.class, "uuid") {
@@ -195,9 +185,7 @@ public enum PrimitiveType {
     PARTIAL_TIME(LocalTime.class, "partial-time") {
         @Override
         public Schema<?> createProperty() {
-            return new Schema<>()
-                .type("string")
-                .format("partial-time");
+            return new StringSchema().format("partial-time");
         }
     },
     FILE(File.class, "file") {

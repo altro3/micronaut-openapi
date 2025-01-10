@@ -20,6 +20,7 @@ import io.micronaut.core.annotation.Internal;
 import io.micronaut.core.util.CollectionUtils;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.inject.visitor.VisitorContext;
+import io.micronaut.openapi.swagger.core.util.PrimitiveType;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
@@ -45,7 +46,6 @@ import static io.micronaut.openapi.visitor.SchemaUtils.EMPTY_SIMPLE_SCHEMA;
 import static io.micronaut.openapi.visitor.SchemaUtils.TYPE_OBJECT;
 import static io.micronaut.openapi.visitor.SchemaUtils.TYPE_STRING;
 import static io.micronaut.openapi.visitor.SchemaUtils.appendSchema;
-import static io.micronaut.openapi.visitor.SchemaUtils.createStringSchema;
 import static io.micronaut.openapi.visitor.SchemaUtils.isEmptySchema;
 import static io.micronaut.openapi.visitor.SchemaUtils.setSpecVersion;
 
@@ -181,7 +181,7 @@ public final class OpenApiNormalizeUtils {
             }
             Schema<?> headerSchema = header.getSchema();
             if (headerSchema == null) {
-                headerSchema = setSpecVersion(createStringSchema());
+                headerSchema = setSpecVersion(PrimitiveType.STRING.createProperty());
                 header.setSchema(headerSchema);
             }
             Schema<?> normalizedSchema = normalizeSchema(headerSchema, context);

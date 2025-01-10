@@ -221,8 +221,8 @@ import static io.micronaut.openapi.visitor.ProtoUtils.normalizeProtobufClassName
 import static io.micronaut.openapi.visitor.ProtoUtils.protobufTypeSchema;
 import static io.micronaut.openapi.visitor.SchemaUtils.TYPE_ARRAY;
 import static io.micronaut.openapi.visitor.SchemaUtils.TYPE_OBJECT;
+import static io.micronaut.openapi.visitor.SchemaUtils.TYPE_STRING;
 import static io.micronaut.openapi.visitor.SchemaUtils.appendSchema;
-import static io.micronaut.openapi.visitor.SchemaUtils.createStringSchema;
 import static io.micronaut.openapi.visitor.SchemaUtils.getSchemaByRef;
 import static io.micronaut.openapi.visitor.SchemaUtils.isEmptySchema;
 import static io.micronaut.openapi.visitor.SchemaUtils.processExtensions;
@@ -923,7 +923,7 @@ public final class SchemaDefinitionUtils {
                 } else if (type.isAssignable(URI.class)) {
                     schema = setSpecVersion(PrimitiveType.URI.createProperty());
                 } else if (type.isAssignable(Character.class) || type.isAssignable(char.class)) {
-                    schema = setSpecVersion(createStringSchema());
+                    schema = setSpecVersion(PrimitiveType.STRING.createProperty());
                 } else if (type.isAssignable(Integer.class) || type.isAssignable(int.class)
                     || type.isAssignable(Short.class) || type.isAssignable(short.class)
                     || type.isAssignable(OptionalInt.class)
@@ -950,11 +950,11 @@ public final class SchemaDefinitionUtils {
                     || type.isAssignable(OffsetDateTime.class)
                     || type.isAssignable(Instant.class)
                     || type.isAssignable(XMLGregorianCalendar.class)) {
-                    schema = setSpecVersion(createStringSchema().format("date-time"));
+                    schema = setSpecVersion(PrimitiveType.STRING.createProperty().format("date-time"));
                 } else if (type.isAssignable(LocalDate.class)) {
-                    schema = setSpecVersion(createStringSchema().format("date"));
+                    schema = setSpecVersion(PrimitiveType.STRING.createProperty().format("date"));
                 } else if (type.isAssignable(LocalTime.class)) {
-                    schema = setSpecVersion(createStringSchema().format("partial-time"));
+                    schema = setSpecVersion(PrimitiveType.STRING.createProperty().format("partial-time"));
                 } else if (type.isAssignable(Number.class)) {
                     schema = setSpecVersion(PrimitiveType.NUMBER.createProperty());
                 } else if (type.getName().equals(Object.class.getName())) {
@@ -1682,7 +1682,7 @@ public final class SchemaDefinitionUtils {
             propertyName = normalizePropertyName(propertyName, classElement, elementType);
             propertySchema.setRequired(null);
             Schema<?> propertySchemaFinal = propertySchema;
-            addProperty(parentSchema, propertyName, propertySchema, required);
+            parentSchema = addProperty(parentSchema, propertyName, propertySchema, required);
             if (schemaAnn != null) {
                 schemaAnn.stringValue(PROP_DEFAULT_VALUE)
                     .ifPresent(value -> {
@@ -3236,7 +3236,7 @@ public final class SchemaDefinitionUtils {
                     propertySchema = Utils.getJsonMapper().readValue(Utils.getJsonMapper().writeValueAsString(prop.getValue()), Schema.class);
                     propertySchema.setName(propertyName);
                 }
-                addProperty(parentSchema, propertyName, propertySchema, isRequired);
+                parentSchema = addProperty(parentSchema, propertyName, propertySchema, isRequired);
             } catch (IOException e) {
                 warn("Exception cloning property " + e.getMessage(), context);
             }
@@ -3259,9 +3259,11 @@ public final class SchemaDefinitionUtils {
         return false;
     }
 
-    private static void addProperty(Schema<?> parentSchema, String name, Schema<?> propertySchema, boolean required) {
-        parentSchema.type(TYPE_OBJECT)
-            .addProperty(name, propertySchema);
+    private static Schema<?> addProperty(Schema<?> parentSchema, String name, Schema<?> propertySchema, boolean required) {
+        if (parentSchema.getType() != null && parentSchema.getType().equals(TYPE_STRING)) {
+            parentSchema = new Schema<>();
+        }
+        parentSchema.addProperty(name, propertySchema);
         if (required) {
             List<String> requiredList = parentSchema.getRequired();
             // Check for duplicates
@@ -3269,6 +3271,7 @@ public final class SchemaDefinitionUtils {
                 parentSchema.addRequiredItem(name);
             }
         }
+        return parentSchema;
     }
 
     private static Map<String, Object> getDiscriminatorMap(Map<CharSequence, Object> newValues) {

@@ -17,9 +17,9 @@ package io.micronaut.openapi.postprocessors;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.util.StringUtils;
+import io.micronaut.openapi.swagger.core.util.PrimitiveType;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
-import io.swagger.v3.oas.models.media.StringSchema;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -59,7 +59,7 @@ public class JacksonDiscriminatorPostProcessor {
         for (String s : schemasToUpdate) {
             Schema<?> schema = openAPI.getComponents().getSchemas().get(extractComponentSchemaName(s));
             if (schema.getProperties() != null && !schema.getProperties().containsKey(discriminatorProperty)) {
-                schema.addProperty(discriminatorProperty, setSpecVersion(new StringSchema()));
+                schema.addProperty(discriminatorProperty, setSpecVersion(PrimitiveType.STRING.createProperty()));
             }
         }
     }
