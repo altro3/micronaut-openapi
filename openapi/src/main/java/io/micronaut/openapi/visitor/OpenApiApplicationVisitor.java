@@ -251,6 +251,8 @@ public class OpenApiApplicationVisitor extends AbstractOpenApiVisitor implements
             return;
         }
 
+        var isReplaceMode = getAdditionalFilesMergeMode(context) == REPLACE;
+
         for (var additionalSwaggerFile : additionalSwaggerFiles) {
             additionalSwaggerFile = additionalSwaggerFile.trim();
 
@@ -277,7 +279,7 @@ public class OpenApiApplicationVisitor extends AbstractOpenApiVisitor implements
                     } catch (IOException e) {
                         warn("Unable to read file " + additionalSwaggerFile + ": " + e.getMessage(), context);
                     }
-                    copyOpenApi(openApi, parsedOpenApi, getAdditionalFilesMergeMode(context) == REPLACE);
+                    copyOpenApi(openApi, parsedOpenApi, isReplaceMode);
 
                 } catch (IOException e) {
                     warn("Fail to load " + additionalSwaggerFile + "\n" + Utils.printStackTrace(e), context);

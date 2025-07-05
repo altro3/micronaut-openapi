@@ -746,4 +746,49 @@ class MyBean {}
         op.responses."200".content."text/xml".schema.type == "string"
         !op.responses."200".content."text/xml".schema.properties
     }
+
+    @RestoreSystemProperties
+    void "test merge with additional openapi file with config in openapi.properties"() {
+
+        given:
+        System.setProperty(OpenApiConfigProperty.MICRONAUT_OPENAPI_CONFIG_FILE, "openapi-additional-files.properties")
+
+        when:
+        buildBeanDefinition('test.MyBean', '''
+package test;
+
+import io.micronaut.http.annotation.Controller;
+import io.micronaut.http.annotation.Get;
+
+@Controller("/test-merge-swagger")
+class TestMergeSwaggerController {
+
+    @Get(produces = "text/plain")
+    public String index() {
+        return "Example Response";
+    }
+}
+
+@jakarta.inject.Singleton
+class MyBean {}
+''')
+        then:
+        Utils.testReference
+
+        when:
+        var openApi = Utils.testReference
+        var op = openApi.paths."/resources/{id}".post
+
+        then:
+        op
+        op.requestBody.content."application/json".schema.type == "string"
+        !op.requestBody.content."application/json".schema.properties
+        op.requestBody.content."text/xml".schema.type == "string"
+        !op.requestBody.content."text/xml".schema.properties
+
+        op.responses."200".content."application/json".schema.type == "string"
+        !op.responses."200".content."application/json".schema.properties
+        op.responses."200".content."text/xml".schema.type == "string"
+        !op.responses."200".content."text/xml".schema.properties
+    }
 }
