@@ -490,6 +490,9 @@ public final class SchemaDefinitionUtils {
                         appendSchema(originalTypeSchema, schema);
                         schema = originalTypeSchema;
                     }
+                    if (schema.getName() != null && !schemaName.equals(schema.getName())) {
+                        schemas.put(schema.getName(), schema);
+                    }
 
                     processSuperTypes(schema, schemaName, type, definingElement, openApi, mediaTypes, schemas, context, jsonViewClass);
                 } finally {
@@ -3291,16 +3294,25 @@ public final class SchemaDefinitionUtils {
             schemaNameFromAnn = getNameFromAnn(elType);
         }
 
+        String origSchemaName = computeDefaultSchemaName(null, null, elType, elType.getTypeArguments(), context, null);
         String schemaName = computeDefaultSchemaName(schemaNameFromAnn, null, elType, elType.getTypeArguments(), context, null);
         Schema<?> wrappedPropertySchema = schemas.get(schemaName);
         if (wrappedPropertySchema == null) {
-            getSchemaDefinition(resolveOpenApi(context), context, elType, elType.getTypeArguments(), element, Collections.emptyList(), null);
+            wrappedPropertySchema = schemas.get(origSchemaName);
+            if (wrappedPropertySchema == null) {
+            var schema = getSchemaDefinition(resolveOpenApi(context), context, elType, elType.getTypeArguments(), element, Collections.emptyList(), null);
             wrappedPropertySchema = schemas.get(schemaName);
+            if (wrappedPropertySchema == null) {
+                wrappedPropertySchema = schema;
+            }
+            }
         }
+
         Map<String, Schema> properties = wrappedPropertySchema != null ? wrappedPropertySchema.getProperties() : null;
         if (CollectionUtils.isEmpty(properties)) {
             return;
         }
+
         String prefix = uw.stringValue("prefix").orElse(EMPTY_STRING);
         String suffix = uw.stringValue("suffix").orElse(EMPTY_STRING);
         for (Map.Entry<String, Schema> prop : properties.entrySet()) {

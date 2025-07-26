@@ -250,10 +250,68 @@ class MyDto {
     public FieldsDto fields;
 }
 
-@Schema(name = "Fields") // does not work
-//@Schema // works
+@Schema(name = "Fields")
 class FieldsDto {
     public String field1;
+}
+
+@jakarta.inject.Singleton
+class MyBean {}
+''')
+        then: "the state is correct"
+        Utils.testReference != null
+
+        when: "The OpenAPI is retrieved"
+        def openApi = Utils.testReference
+        Schema schema = openApi.components.schemas.My
+
+        then: "the components are valid"
+        schema
+        schema.type == 'object'
+        schema.properties
+        schema.properties.size() == 1
+        schema.properties.field1
+        schema.properties.field1.type == "string"
+    }
+
+    void "test JsonUnwrapped with schema on property level"() {
+
+        given: "An API definition"
+        when:
+        buildBeanDefinition('test.MyBean', '''
+package test;
+
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
+import io.micronaut.http.annotation.Controller;
+import io.micronaut.http.annotation.Get;
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Controller
+class DemoController {
+
+    @Get("/")
+    MyDto index() {
+        return null;
+    }
+}
+
+@Schema(name = "My")
+class MyDto {
+    @JsonUnwrapped
+    public FieldsDto fields;
+}
+
+@Schema(name= "customName", oneOf = {SubtypeA.class, SubtypeB.class})
+class FieldsDto {
+    public String field1;
+}
+
+class SubtypeA extends FieldsDto {
+    public String field2;
+}
+
+class SubtypeB extends FieldsDto {
+    public String field3;
 }
 
 @jakarta.inject.Singleton
