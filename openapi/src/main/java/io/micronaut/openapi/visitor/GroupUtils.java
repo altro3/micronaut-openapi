@@ -61,10 +61,10 @@ public final class GroupUtils {
     }
 
     public static void processMicronautVersionAndGroup(Operation swaggerOperation, String url,
-                                                 HttpMethod httpMethod,
-                                                 List<MediaType> consumesMediaTypes,
-                                                 List<MediaType> producesMediaTypes,
-                                                 MethodElement methodEl, VisitorContext context) {
+                                                       HttpMethod httpMethod,
+                                                       List<MediaType> consumesMediaTypes,
+                                                       List<MediaType> producesMediaTypes,
+                                                       MethodElement methodEl, VisitorContext context) {
 
         String methodKey = httpMethod.name()
             + '#' + url
@@ -145,9 +145,9 @@ public final class GroupUtils {
     }
 
     public static void processGroups(Map<String, EndpointGroupInfo> groups,
-                               List<String> excludedGroups,
-                               List<AnnotationValue<OpenAPIGroup>> annotationValues,
-                               Map<String, GroupProperties> groupPropertiesMap) {
+                                     List<String> excludedGroups,
+                                     List<AnnotationValue<OpenAPIGroup>> annotationValues,
+                                     Map<String, GroupProperties> groupPropertiesMap) {
         if (CollectionUtils.isEmpty(annotationValues)) {
             return;
         }

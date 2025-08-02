@@ -89,6 +89,7 @@ public final class EndpointUtils {
         knownEndpoints.addAll(ALL_SPRING_ACTUATOR_ENDPOINTS.values());
         ALL_MANAGEMENT_ENDPOINT_CLASSES = List.copyOf(knownEndpoints);
     }
+
     public static final String[] ALL_MANAGEMENT_ENDPOINT_CLASSES_ARRAY = ALL_MANAGEMENT_ENDPOINT_CLASSES.toArray(StringUtils.EMPTY_STRING_ARRAY);
 
     private EndpointUtils() {

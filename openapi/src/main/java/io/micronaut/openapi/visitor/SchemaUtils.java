@@ -21,7 +21,6 @@ import io.micronaut.core.annotation.Internal;
 import io.micronaut.core.util.ArrayUtils;
 import io.micronaut.core.util.CollectionUtils;
 import io.micronaut.core.util.StringUtils;
-import io.micronaut.http.HttpHeaders;
 import io.micronaut.http.HttpMethod;
 import io.micronaut.inject.ast.Element;
 import io.micronaut.inject.visitor.VisitorContext;
@@ -1480,9 +1479,9 @@ public final class SchemaUtils {
         // Header parameter named "Authorization" is ignored. Use the `securitySchemes` and `security` sections instead to define authorization
         // Header parameter named "Content-Type" is ignored. The values for the "Content-Type" header are defined by `request.body.content.<media-type>`
         // Header parameter named "Accept" is ignored. The values for the "Accept" header are defined by `responses.<code>.content.<media-type>`
-        return HttpHeaders.AUTHORIZATION.equalsIgnoreCase(headerName)
-            || HttpHeaders.CONTENT_TYPE.equalsIgnoreCase(headerName)
-            || HttpHeaders.ACCEPT.equalsIgnoreCase(headerName);
+        return "Authorization".equalsIgnoreCase(headerName)
+            || "Content-Type".equalsIgnoreCase(headerName)
+            || "Accept".equalsIgnoreCase(headerName);
     }
 
     public static Schema setNullable(Schema<?> schema) {

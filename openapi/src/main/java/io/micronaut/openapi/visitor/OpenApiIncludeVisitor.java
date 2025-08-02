@@ -16,7 +16,6 @@
 package io.micronaut.openapi.visitor;
 
 import io.micronaut.core.util.ArrayUtils;
-import io.micronaut.http.annotation.Controller;
 import io.micronaut.inject.ast.ClassElement;
 import io.micronaut.inject.ast.ElementModifier;
 import io.micronaut.inject.ast.ElementQuery;
@@ -33,6 +32,8 @@ import java.util.List;
 
 import static io.micronaut.openapi.visitor.ConfigUtils.isOpenApiEnabled;
 import static io.micronaut.openapi.visitor.ConfigUtils.isSpecGenerationEnabled;
+import static io.micronaut.openapi.visitor.MnAnnotation.ANN_CONTROLLER;
+import static io.micronaut.openapi.visitor.MnAnnotation.ANN_ENDPOINT;
 import static io.micronaut.openapi.visitor.OpenApiConfigProperty.MICRONAUT_OPENAPI_ENABLED;
 import static io.micronaut.openapi.visitor.OpenApiModelProp.PROP_DESCRIPTION;
 import static io.micronaut.openapi.visitor.OpenApiModelProp.PROP_EXTENSIONS;
@@ -96,9 +97,9 @@ public class OpenApiIncludeVisitor implements TypeElementVisitor<OpenAPIIncludes
                 }
                 groupVisitor.visitClass(classEl, context);
 
-                if (classEl.isAnnotationPresent(Controller.class)) {
+                if (classEl.isAnnotationPresent(ANN_CONTROLLER)) {
                     visit(controllerVisitor, context, classEl);
-                } else if (classEl.isAnnotationPresent("io.micronaut.management.endpoint.annotation.Endpoint")) {
+                } else if (classEl.isAnnotationPresent(ANN_ENDPOINT)) {
                     visit(endpointVisitor, context, classEl);
                 }
             }

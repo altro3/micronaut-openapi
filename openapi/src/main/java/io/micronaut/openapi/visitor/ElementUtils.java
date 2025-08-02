@@ -27,17 +27,6 @@ import io.micronaut.core.annotation.Internal;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.reflect.ClassUtils;
 import io.micronaut.core.util.StringUtils;
-import io.micronaut.http.HttpRequest;
-import io.micronaut.http.HttpResponse;
-import io.micronaut.http.annotation.Body;
-import io.micronaut.http.annotation.CookieValue;
-import io.micronaut.http.annotation.Header;
-import io.micronaut.http.annotation.Part;
-import io.micronaut.http.annotation.PathVariable;
-import io.micronaut.http.annotation.QueryValue;
-import io.micronaut.http.annotation.RequestAttribute;
-import io.micronaut.http.annotation.RequestBean;
-import io.micronaut.http.multipart.FileUpload;
 import io.micronaut.http.uri.UriMatchTemplate;
 import io.micronaut.http.uri.UriMatchVariable;
 import io.micronaut.inject.annotation.AnnotationMetadataHierarchy;
@@ -69,6 +58,14 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.micronaut.openapi.visitor.ConfigUtils.isJsonViewEnabled;
+import static io.micronaut.openapi.visitor.MnAnnotation.ANN_BODY;
+import static io.micronaut.openapi.visitor.MnAnnotation.ANN_COOKIE_VALUE;
+import static io.micronaut.openapi.visitor.MnAnnotation.ANN_HEADER;
+import static io.micronaut.openapi.visitor.MnAnnotation.ANN_PART;
+import static io.micronaut.openapi.visitor.MnAnnotation.ANN_PATH_VARIABLE;
+import static io.micronaut.openapi.visitor.MnAnnotation.ANN_QUERY_VALUE;
+import static io.micronaut.openapi.visitor.MnAnnotation.ANN_REQUEST_ATTRIBUTE;
+import static io.micronaut.openapi.visitor.MnAnnotation.ANN_REQUEST_BEAN;
 import static io.micronaut.openapi.visitor.OpenApiModelProp.PROP_DEPRECATED;
 import static io.micronaut.openapi.visitor.OpenApiModelProp.PROP_HIDDEN;
 
@@ -147,7 +144,7 @@ public final class ElementUtils {
 
     public static boolean isResponseType(ClassElement returnType) {
         return returnType != null
-            && (returnType.isAssignable(HttpResponse.class)
+            && (returnType.isAssignable("io.micronaut.http.HttpResponse")
             || returnType.isAssignable("org.springframework.http.HttpEntity"));
     }
 
@@ -186,7 +183,7 @@ public final class ElementUtils {
             }
         }
         String typeName = type.getName();
-        return type.isAssignable(FileUpload.class)
+        return type.isAssignable("io.micronaut.http.multipart.FileUpload")
             || "io.micronaut.http.multipart.StreamingFileUpload".equals(typeName)
             || "io.micronaut.http.multipart.CompletedFileUpload".equals(typeName)
             || "io.micronaut.http.multipart.CompletedPart".equals(typeName)
@@ -213,7 +210,7 @@ public final class ElementUtils {
 
     public static boolean isWrappedBodyParameter(@NonNull TypedElement parameter) {
 
-        var bodyAnn = parameter.getAnnotation(Body.class);
+        var bodyAnn = parameter.getAnnotation(ANN_BODY);
         if (bodyAnn != null) {
             var propertyName = bodyAnn.stringValue().orElse(null);
             return StringUtils.isNotEmpty(propertyName);
@@ -248,19 +245,19 @@ public final class ElementUtils {
         }
 
         return hasNoBindingAnnotationOrType(parameter)
-            && !parameter.hasAnnotation(RequestAttribute.class)
+            && !parameter.hasAnnotation(ANN_REQUEST_ATTRIBUTE)
             ;
     }
 
     public static boolean hasNoBindingAnnotationOrType(TypedElement parameter) {
         return !parameter.isAnnotationPresent(io.swagger.v3.oas.annotations.parameters.RequestBody.class)
-            && !parameter.isAnnotationPresent(QueryValue.class)
-            && !parameter.isAnnotationPresent(PathVariable.class)
-            && !parameter.isAnnotationPresent(Body.class)
-            && !parameter.isAnnotationPresent(Part.class)
-            && !parameter.isAnnotationPresent(CookieValue.class)
-            && !parameter.isAnnotationPresent(Header.class)
-            && !parameter.isAnnotationPresent(RequestBean.class)
+            && !parameter.isAnnotationPresent(ANN_QUERY_VALUE)
+            && !parameter.isAnnotationPresent(ANN_PATH_VARIABLE)
+            && !parameter.isAnnotationPresent(ANN_BODY)
+            && !parameter.isAnnotationPresent(ANN_PART)
+            && !parameter.isAnnotationPresent(ANN_COOKIE_VALUE)
+            && !parameter.isAnnotationPresent(ANN_HEADER)
+            && !parameter.isAnnotationPresent(ANN_REQUEST_BEAN)
             && !isResponseType(parameter.getType());
     }
 
@@ -327,9 +324,9 @@ public final class ElementUtils {
         return isHidden
             || parameter.isAnnotationPresent(Hidden.class)
             || parameter.isAnnotationPresent(JsonIgnore.class)
-            || parameter.isAnnotationPresent(Header.class) && parameter.getType().isAssignable(Map.class)
-            || parameter.isAnnotationPresent(RequestAttribute.class)
             || parameter.booleanValue(Parameter.class, PROP_HIDDEN).orElse(false)
+            || parameter.isAnnotationPresent(ANN_HEADER) && parameter.getType().isAssignable(Map.class)
+            || parameter.isAnnotationPresent(ANN_REQUEST_ATTRIBUTE)
             || parameter.hasAnnotation("io.micronaut.session.annotation.SessionValue")
             || parameter.hasAnnotation("org.springframework.web.bind.annotation.RequestAttribute")
             || parameter.hasAnnotation("org.springframework.web.bind.annotation.SessionAttribute")
@@ -345,7 +342,7 @@ public final class ElementUtils {
             || parameterType.isAssignable("io.micronaut.security.authentication.Authentication")
             || parameterType.isAssignable("io.micronaut.http.HttpHeaders")
             || parameterType.isAssignable("kotlin.coroutines.Continuation")
-            || parameterType.isAssignable(HttpRequest.class)
+            || parameterType.isAssignable("io.micronaut.http.HttpRequest")
             || parameterType.isAssignable("io.micronaut.http.BasicAuth")
 
             // servlet API
@@ -553,7 +550,7 @@ public final class ElementUtils {
         var schemaAnn = el.getAnnotation(Schema.class);
         var operationAnn = el.getAnnotation(Operation.class);
         var parameterAnn = el.getAnnotation(Parameter.class);
-        var headerAnn = el.getAnnotation(Header.class);
+        var headerAnn = el.getAnnotation(ANN_HEADER);
         var deprecatedBySchema = schemaAnn != null ? schemaAnn.booleanValue(PROP_DEPRECATED).orElse(null) : null;
         var deprecatedByOperation = operationAnn != null ? operationAnn.booleanValue(PROP_DEPRECATED).orElse(null) : null;
         var deprecatedByParameter = parameterAnn != null ? parameterAnn.booleanValue(PROP_DEPRECATED).orElse(null) : null;

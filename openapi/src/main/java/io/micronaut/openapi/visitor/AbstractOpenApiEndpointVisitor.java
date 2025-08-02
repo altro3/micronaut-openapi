@@ -29,17 +29,6 @@ import io.micronaut.core.util.StringUtils;
 import io.micronaut.http.HttpMethod;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.MediaType;
-import io.micronaut.http.annotation.Body;
-import io.micronaut.http.annotation.Controller;
-import io.micronaut.http.annotation.CookieValue;
-import io.micronaut.http.annotation.Header;
-import io.micronaut.http.annotation.Headers;
-import io.micronaut.http.annotation.Part;
-import io.micronaut.http.annotation.PathVariable;
-import io.micronaut.http.annotation.QueryValue;
-import io.micronaut.http.annotation.RequestBean;
-import io.micronaut.http.annotation.Status;
-import io.micronaut.http.annotation.UriMapping;
 import io.micronaut.http.uri.UriMatchTemplate;
 import io.micronaut.http.uri.UriMatchVariable;
 import io.micronaut.inject.ast.ClassElement;
@@ -127,6 +116,17 @@ import static io.micronaut.openapi.visitor.GeneratorUtils.addOperationDeprecated
 import static io.micronaut.openapi.visitor.GeneratorUtils.addParameterDeprecatedExtension;
 import static io.micronaut.openapi.visitor.GroupUtils.processMicronautVersionAndGroup;
 import static io.micronaut.openapi.visitor.InternalExt.MICRONAUT_OP_POSTFIX;
+import static io.micronaut.openapi.visitor.MnAnnotation.ANN_BODY;
+import static io.micronaut.openapi.visitor.MnAnnotation.ANN_CONTROLLER;
+import static io.micronaut.openapi.visitor.MnAnnotation.ANN_COOKIE_VALUE;
+import static io.micronaut.openapi.visitor.MnAnnotation.ANN_HEADER;
+import static io.micronaut.openapi.visitor.MnAnnotation.ANN_HEADERS;
+import static io.micronaut.openapi.visitor.MnAnnotation.ANN_PART;
+import static io.micronaut.openapi.visitor.MnAnnotation.ANN_PATH_VARIABLE;
+import static io.micronaut.openapi.visitor.MnAnnotation.ANN_QUERY_VALUE;
+import static io.micronaut.openapi.visitor.MnAnnotation.ANN_REQUEST_BEAN;
+import static io.micronaut.openapi.visitor.MnAnnotation.ANN_STATUS;
+import static io.micronaut.openapi.visitor.MnAnnotation.ANN_URI_MAPPING;
 import static io.micronaut.openapi.visitor.OpenApiModelProp.MICRONAUT_EXT_PARENT_RESPONSE;
 import static io.micronaut.openapi.visitor.OpenApiModelProp.PROP_ADD_ALWAYS;
 import static io.micronaut.openapi.visitor.OpenApiModelProp.PROP_ALLOW_EMPTY_VALUE;
@@ -219,9 +219,9 @@ public abstract class AbstractOpenApiEndpointVisitor extends AbstractOpenApiVisi
         processExternalDocs(element, context);
         ContextUtils.remove(MICRONAUT_INTERNAL_CHILD_PATH, context);
 
-        if (element.isAnnotationPresent(Controller.class)) {
+        if (element.isAnnotationPresent(ANN_CONTROLLER)) {
 
-            element.stringValue(UriMapping.class).ifPresent(url -> ContextUtils.put(MICRONAUT_INTERNAL_CHILD_PATH, url, context));
+            element.stringValue(ANN_URI_MAPPING).ifPresent(url -> ContextUtils.put(MICRONAUT_INTERNAL_CHILD_PATH, url, context));
             String prefix = StringUtils.EMPTY_STRING;
             String suffix = StringUtils.EMPTY_STRING;
             boolean addAlways = true;
@@ -808,13 +808,13 @@ public abstract class AbstractOpenApiEndpointVisitor extends AbstractOpenApiVisi
                     if (!paramEl.getName().equals(parameter.getName())) {
                         continue;
                     }
-                    if (paramEl.isAnnotationPresent(PathVariable.class)) {
+                    if (paramEl.isAnnotationPresent(ANN_PATH_VARIABLE)) {
                         parameter.setIn(ParameterIn.PATH.toString());
-                    } else if (paramEl.isAnnotationPresent(QueryValue.class)) {
+                    } else if (paramEl.isAnnotationPresent(ANN_QUERY_VALUE)) {
                         parameter.setIn(ParameterIn.QUERY.toString());
-                    } else if (paramEl.isAnnotationPresent(CookieValue.class)) {
+                    } else if (paramEl.isAnnotationPresent(ANN_COOKIE_VALUE)) {
                         parameter.setIn(ParameterIn.COOKIE.toString());
-                    } else if (paramEl.isAnnotationPresent(Header.class)) {
+                    } else if (paramEl.isAnnotationPresent(ANN_HEADER)) {
                         parameter.setIn(ParameterIn.HEADER.toString());
                     } else {
                         UriMatchVariable pathVariable = pathVariables.get(parameter.getName());
@@ -877,12 +877,12 @@ public abstract class AbstractOpenApiEndpointVisitor extends AbstractOpenApiVisi
 
         consumesMediaTypes = CollectionUtils.isNotEmpty(consumesMediaTypes) ? consumesMediaTypes : DEFAULT_MEDIA_TYPES;
 
-        if (parameter.isAnnotationPresent(Body.class) && !hasSwaggerRequestBodyImpl) {
+        if (parameter.isAnnotationPresent(ANN_BODY) && !hasSwaggerRequestBodyImpl) {
             processBody(context, openApi, swaggerOperation, javadocDescription, permitsRequestBody, consumesMediaTypes, parameter, parameterType);
             return;
         }
 
-        if (parameter.isAnnotationPresent(RequestBean.class)) {
+        if (parameter.isAnnotationPresent(ANN_REQUEST_BEAN)) {
             processRequestBean(context, openApi, swaggerOperation, javadocDescription, permitsRequestBody, pathVariables, queryParams,
                 consumesMediaTypes, swaggerParameters, parameter, extraBodyParameters, httpMethod, matchTemplates, pathItems);
             return;
@@ -1012,8 +1012,8 @@ public abstract class AbstractOpenApiEndpointVisitor extends AbstractOpenApiVisi
             if (exploded) {
                 newParameter.setExplode(exploded);
             }
-        } else if (parameter.isAnnotationPresent(PathVariable.class)) {
-            String paramName = parameter.getValue(PathVariable.class, String.class).orElse(parameterName);
+        } else if (parameter.isAnnotationPresent(ANN_PATH_VARIABLE)) {
+            String paramName = parameter.getValue(ANN_PATH_VARIABLE, String.class).orElse(parameterName);
             if (paramName.isEmpty()) {
                 paramName = parameterName;
             }
@@ -1030,16 +1030,16 @@ public abstract class AbstractOpenApiEndpointVisitor extends AbstractOpenApiVisi
             if (exploded) {
                 newParameter.setExplode(true);
             }
-        } else if (parameter.isAnnotationPresent(Header.class)) {
+        } else if (parameter.isAnnotationPresent(ANN_HEADER)) {
             var headerName = getHeaderName(parameter, parameterName);
             if (headerName == null) {
                 return null;
             }
             newParameter = new HeaderParameter();
             newParameter.setName(headerName);
-        } else if (parameter.isAnnotationPresent(Headers.class)) {
+        } else if (parameter.isAnnotationPresent(ANN_HEADERS)) {
 
-            var headerAnns = parameter.getAnnotationValuesByType(Header.class);
+            var headerAnns = parameter.getAnnotationValuesByName(ANN_HEADER);
             if (CollectionUtils.isNotEmpty(headerAnns)) {
                 var headerName = getHeaderName(parameter, parameterName);
                 if (headerName == null) {
@@ -1048,11 +1048,11 @@ public abstract class AbstractOpenApiEndpointVisitor extends AbstractOpenApiVisi
                 newParameter = new HeaderParameter();
                 newParameter.setName(headerName);
             }
-        } else if (parameter.isAnnotationPresent(CookieValue.class)) {
-            String cookieName = parameter.stringValue(CookieValue.class).orElse(parameterName);
+        } else if (parameter.isAnnotationPresent(ANN_COOKIE_VALUE)) {
+            String cookieName = parameter.stringValue(ANN_COOKIE_VALUE).orElse(parameterName);
             newParameter = new CookieParameter();
             newParameter.setName(cookieName);
-        } else if (parameter.isAnnotationPresent(QueryValue.class)) {
+        } else if (parameter.isAnnotationPresent(ANN_QUERY_VALUE)) {
 
             var isExtraBodyParam = false;
             // Fix for Spring boot controller endpoints for Map with MultipartFile like this:
@@ -1073,11 +1073,11 @@ public abstract class AbstractOpenApiEndpointVisitor extends AbstractOpenApiVisi
                 isExtraBodyParam = true;
             }
             if (!isExtraBodyParam) {
-                String queryVar = parameter.stringValue(QueryValue.class).orElse(parameterName);
+                String queryVar = parameter.stringValue(ANN_QUERY_VALUE).orElse(parameterName);
                 newParameter = new QueryParameter();
                 newParameter.setName(queryVar);
             }
-        } else if (parameter.isAnnotationPresent(Part.class) && permitsRequestBody) {
+        } else if (parameter.isAnnotationPresent(ANN_PART) && permitsRequestBody) {
             extraBodyParameters.add(parameter);
             isBodyParameter = true;
         } else if (parameter.hasAnnotation("io.micronaut.management.endpoint.annotation.Selector")) {
@@ -1147,11 +1147,11 @@ public abstract class AbstractOpenApiEndpointVisitor extends AbstractOpenApiVisi
 
             Map<CharSequence, Object> paramValues = toValueMap(paramAnn.getAnnotationName(), paramAnn.getValues(), context, null);
             Utils.normalizeEnumValues(paramValues, Collections.singletonMap(PROP_IN, ParameterIn.class));
-            if (parameter.isAnnotationPresent(Header.class)) {
+            if (parameter.isAnnotationPresent(ANN_HEADER)) {
                 paramValues.put(PROP_IN, ParameterIn.HEADER.toString());
-            } else if (parameter.isAnnotationPresent(CookieValue.class)) {
+            } else if (parameter.isAnnotationPresent(ANN_COOKIE_VALUE)) {
                 paramValues.put(PROP_IN, ParameterIn.COOKIE.toString());
-            } else if (parameter.isAnnotationPresent(QueryValue.class)) {
+            } else if (parameter.isAnnotationPresent(ANN_QUERY_VALUE)) {
                 paramValues.put(PROP_IN, ParameterIn.QUERY.toString());
             }
             processExplode(paramAnn, paramValues);
@@ -1275,7 +1275,7 @@ public abstract class AbstractOpenApiEndpointVisitor extends AbstractOpenApiVisi
         }
 
         var isWrappedBodyParam = isWrappedBodyParameter(parameter);
-        var bodyAnn = parameter.getAnnotation(Body.class);
+        var bodyAnn = parameter.getAnnotation(ANN_BODY);
         String wrappedSchemaPropertyName = bodyAnn != null ? bodyAnn.getValue(String.class).orElse(null) : null;
 
         for (var mediaType : consumesMediaTypes) {
@@ -1371,8 +1371,8 @@ public abstract class AbstractOpenApiEndpointVisitor extends AbstractOpenApiVisi
 
         ApiResponses existedResponses = existedOperation != null ? existedOperation.getResponses() : null;
         ApiResponses responses = swaggerOperation.getResponses();
-        HttpStatus methodResponseStatus = element.enumValue(Status.class, HttpStatus.class).orElse(null);
-        var responseStatusNotSetOrSetByAnnotation = element.hasAnnotation(Status.class) || methodResponseStatus == null;
+        HttpStatus methodResponseStatus = element.enumValue(ANN_STATUS, HttpStatus.class).orElse(null);
+        var responseStatusNotSetOrSetByAnnotation = element.hasAnnotation(ANN_STATUS) || methodResponseStatus == null;
         if (methodResponseStatus == null) {
             methodResponseStatus = HttpStatus.OK;
         } else if (existedResponses != null && existedResponses.getExtensions() != null && existedResponses.getExtensions().containsKey(MICRONAUT_EXT_PARENT_RESPONSE)) {

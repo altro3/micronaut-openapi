@@ -19,10 +19,6 @@ import io.micronaut.core.annotation.Internal;
 import io.micronaut.core.naming.NameUtils;
 import io.micronaut.core.util.CollectionUtils;
 import io.micronaut.http.HttpMethod;
-import io.micronaut.http.annotation.CookieValue;
-import io.micronaut.http.annotation.Header;
-import io.micronaut.http.annotation.PathVariable;
-import io.micronaut.http.annotation.QueryValue;
 import io.micronaut.inject.ast.ParameterElement;
 import io.micronaut.inject.ast.TypedElement;
 import io.micronaut.openapi.swagger.core.util.PrimitiveType;
@@ -35,6 +31,10 @@ import java.util.List;
 import java.util.Set;
 
 import static io.micronaut.openapi.visitor.ElementUtils.isIgnoredParameter;
+import static io.micronaut.openapi.visitor.MnAnnotation.ANN_COOKIE_VALUE;
+import static io.micronaut.openapi.visitor.MnAnnotation.ANN_HEADER;
+import static io.micronaut.openapi.visitor.MnAnnotation.ANN_PATH_VARIABLE;
+import static io.micronaut.openapi.visitor.MnAnnotation.ANN_QUERY_VALUE;
 import static io.micronaut.openapi.visitor.OpenApiModelProp.PROP_NAME;
 import static io.micronaut.openapi.visitor.SchemaUtils.isIgnoredHeader;
 import static io.micronaut.openapi.visitor.SchemaUtils.setSpecVersion;
@@ -58,13 +58,13 @@ public final class ParamUtils {
         String paramName = methodParam.getName();
         Set<String> paramAnnNames = methodParam.getAnnotationNames();
         if (CollectionUtils.isNotEmpty(paramAnnNames)) {
-            if (paramAnnNames.contains(QueryValue.class.getName())) {
+            if (paramAnnNames.contains(ANN_QUERY_VALUE)) {
                 return ParameterIn.QUERY.toString();
-            } else if (paramAnnNames.contains(PathVariable.class.getName())) {
+            } else if (paramAnnNames.contains(ANN_PATH_VARIABLE)) {
                 return ParameterIn.PATH.toString();
-            } else if (paramAnnNames.contains(Header.class.getName())) {
+            } else if (paramAnnNames.contains(ANN_HEADER)) {
                 return ParameterIn.HEADER.toString();
-            } else if (paramAnnNames.contains(CookieValue.class.getName())) {
+            } else if (paramAnnNames.contains(ANN_COOKIE_VALUE)) {
                 return ParameterIn.COOKIE.toString();
             }
         }
@@ -139,8 +139,8 @@ public final class ParamUtils {
         if (isIgnoredParameter(parameter)) {
             return null;
         }
-        String headerName = parameter.stringValue(Header.class, PROP_NAME)
-            .orElse(parameter.stringValue(Header.class)
+        String headerName = parameter.stringValue(ANN_HEADER, PROP_NAME)
+            .orElse(parameter.stringValue(ANN_HEADER)
                 .orElseGet(() -> NameUtils.hyphenate(parameterName)));
 
         if (isIgnoredHeader(headerName)) {

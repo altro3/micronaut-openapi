@@ -42,7 +42,6 @@ import io.micronaut.core.util.CollectionUtils;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.MediaType;
-import io.micronaut.http.annotation.Body;
 import io.micronaut.inject.ast.ClassElement;
 import io.micronaut.inject.ast.Element;
 import io.micronaut.inject.ast.ElementQuery;
@@ -164,6 +163,8 @@ import static io.micronaut.openapi.visitor.GeneratorExt.SIZE_MESSAGE;
 import static io.micronaut.openapi.visitor.GeneratorUtils.addEnumExtensions;
 import static io.micronaut.openapi.visitor.GeneratorUtils.addSchemaDeprecatedExtension;
 import static io.micronaut.openapi.visitor.GeneratorUtils.addValidationMessages;
+import static io.micronaut.openapi.visitor.MnAnnotation.ANN_BODY;
+import static io.micronaut.openapi.visitor.MnAnnotation.ANN_PART;
 import static io.micronaut.openapi.visitor.OpenApiApplicationVisitor.expandProperties;
 import static io.micronaut.openapi.visitor.OpenApiApplicationVisitor.replacePlaceholders;
 import static io.micronaut.openapi.visitor.OpenApiApplicationVisitor.resolvePlaceholders;
@@ -2811,7 +2812,7 @@ public final class SchemaDefinitionUtils {
             addValidationAnnMessage(element, "javax.validation.constraints.Pattern$List", PATTERN_MESSAGE, messages, context);
             addValidationAnnMessage(element, "jakarta.validation.constraints.Pattern$List", PATTERN_MESSAGE, messages, context);
 
-            element.getValue("io.micronaut.http.annotation.Part", String.class)
+            element.getValue(ANN_PART, String.class)
                 .ifPresent(schemaToBind::setName);
 
         }
@@ -3238,8 +3239,8 @@ public final class SchemaDefinitionUtils {
     private static String resolvePropertyName(Element element, Element classElement, Schema<?> propertySchema) {
         String name = propertySchema.getName() != null ? propertySchema.getName() : element.getName();
 
-        if (element.isAnnotationPresent(Body.class)) {
-            var propertyName = element.stringValue(Body.class).orElse(null);
+        if (element.isAnnotationPresent(ANN_BODY)) {
+            var propertyName = element.stringValue(ANN_BODY).orElse(null);
             if (StringUtils.isNotEmpty(propertyName)) {
                 return propertyName;
             }
@@ -3315,8 +3316,8 @@ public final class SchemaDefinitionUtils {
                 .map(Map::entrySet)
                 .flatMap(Collection::stream)
                 .collect(Collectors.groupingBy(Entry::getKey, Collectors.mapping(Entry::getValue, Collectors.toList())));
-            Map<String, Schema> propertiesOfAll = new LinkedHashMap<>();
-            for (Entry<String, List<Schema>> entry : propertiesOfAllWithPotentialDuplicates.entrySet()) {
+            var propertiesOfAll = new LinkedHashMap<String, Schema>();
+            for (var entry : propertiesOfAllWithPotentialDuplicates.entrySet()) {
                 if (entry.getValue().size() > 1) {
                     Set<String> types = entry.getValue().stream()
                         .map(Schema::getType)
