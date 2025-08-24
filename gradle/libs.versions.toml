@@ -2,7 +2,7 @@
 managed-swagger = "2.2.36"
 managed-javadoc-parser = "0.3.1"
 managed-jsoup = "1.21.1"
-managed-html2md-converter = "0.64.8"
+managed-flexmark = "0.64.8"
 managed-parboiled = "1.4.1"
 managed-freemarker = "2.3.34"
 managed-pegdown = "1.6.0"
@@ -60,7 +60,22 @@ managed-swagger-annotations = { module = "io.swagger.core.v3:swagger-annotations
 managed-swagger-models = { module = "io.swagger.core.v3:swagger-models", version.ref = "managed-swagger" }
 
 managed-javadoc-parser = { module = "com.github.chhorz:javadoc-parser", version.ref = "managed-javadoc-parser" }
-managed-html2md-converter = { module = "com.vladsch.flexmark:flexmark-html2md-converter", version.ref = "managed-html2md-converter" }
+managed-flexmark-html2md-converter = { module = "com.vladsch.flexmark:flexmark-html2md-converter", version.ref = "managed-flexmark" }
+managed-flexmark-profile-pegdown = { module = "com.vladsch.flexmark:flexmark-profile-pegdown", version.ref = "managed-flexmark" }
+managed-flexmark-ext-admonition = { module = "com.vladsch.flexmark:flexmark-ext-admonition", version.ref = "managed-flexmark" }
+managed-flexmark-ext-enumerated-reference = { module = "com.vladsch.flexmark:flexmark-ext-enumerated-reference", version.ref = "managed-flexmark" }
+managed-flexmark-ext-gfm-issues = { module = "com.vladsch.flexmark:flexmark-ext-gfm-issues", version.ref = "managed-flexmark" }
+managed-flexmark-ext-gfm-users = { module = "com.vladsch.flexmark:flexmark-ext-gfm-users", version.ref = "managed-flexmark" }
+managed-flexmark-ext-gitlab = { module = "com.vladsch.flexmark:flexmark-ext-gitlab", version.ref = "managed-flexmark" }
+managed-flexmark-ext-jekyll-tag = { module = "com.vladsch.flexmark:flexmark-ext-jekyll-tag", version.ref = "managed-flexmark" }
+managed-flexmark-ext-macros = { module = "com.vladsch.flexmark:flexmark-ext-macros", version.ref = "managed-flexmark" }
+managed-flexmark-ext-media-tags = { module = "com.vladsch.flexmark:flexmark-ext-media-tags", version.ref = "managed-flexmark" }
+managed-flexmark-ext-resizable-image = { module = "com.vladsch.flexmark:flexmark-ext-resizable-image", version.ref = "managed-flexmark" }
+managed-flexmark-ext-toc = { module = "com.vladsch.flexmark:flexmark-ext-toc", version.ref = "managed-flexmark" }
+managed-flexmark-ext-xwiki-macros = { module = "com.vladsch.flexmark:flexmark-ext-xwiki-macros", version.ref = "managed-flexmark" }
+managed-flexmark-ext-yaml-front-matter = { module = "com.vladsch.flexmark:flexmark-ext-yaml-front-matter", version.ref = "managed-flexmark" }
+managed-flexmark-ext-youtube-embedded = { module = "com.vladsch.flexmark:flexmark-ext-youtube-embedded", version.ref = "managed-flexmark" }
+
 managed-jsoup = { module = "org.jsoup:jsoup", version.ref = "managed-jsoup" }
 managed-parboiled = { module = "org.parboiled:parboiled-java", version.ref = "managed-parboiled" }
 managed-freemarker = { module = "org.freemarker:freemarker", version.ref = "managed-freemarker" }

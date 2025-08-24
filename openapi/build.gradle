@@ -23,9 +23,24 @@ dependencies {
     api(mn.jackson.datatype.jsr310)
     api(libs.managed.swagger.models)
     api(libs.managed.javadoc.parser)
-    api(libs.managed.html2md.converter) {
+    api(libs.managed.flexmark.html2md.converter) {
         exclude group: "org.jetbrains", module: "annotations"
     }
+    api(libs.managed.flexmark.profile.pegdown)
+    api(libs.managed.flexmark.ext.admonition)
+    api(libs.managed.flexmark.ext.enumerated.reference)
+    api(libs.managed.flexmark.ext.gfm.issues)
+    api(libs.managed.flexmark.ext.gfm.users)
+    api(libs.managed.flexmark.ext.gitlab)
+    api(libs.managed.flexmark.ext.jekyll.tag)
+    api(libs.managed.flexmark.ext.macros)
+    api(libs.managed.flexmark.ext.media.tags)
+    api(libs.managed.flexmark.ext.resizable.image)
+    api(libs.managed.flexmark.ext.toc)
+    api(libs.managed.flexmark.ext.xwiki.macros)
+    api(libs.managed.flexmark.ext.yaml.front.matter)
+    api(libs.managed.flexmark.ext.youtube.embedded)
+
     // this dependency needs to be updated manually. It's used by html2md
     api(libs.managed.jsoup)
 
