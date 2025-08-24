@@ -100,6 +100,7 @@ import static io.micronaut.openapi.generator.Utils.NULL_STRING;
 import static io.micronaut.openapi.generator.Utils.addEnumParamsForConverters;
 import static io.micronaut.openapi.generator.Utils.addStrValueToEnum;
 import static io.micronaut.openapi.generator.Utils.calcQueryValueFormat;
+import static io.micronaut.openapi.generator.Utils.convertDocs;
 import static io.micronaut.openapi.generator.Utils.isDateType;
 import static io.micronaut.openapi.generator.Utils.normalizeExtraAnnotations;
 import static io.micronaut.openapi.generator.Utils.processDuplicateVars;
@@ -130,6 +131,7 @@ public abstract class AbstractMicronautJavaCodegen<T extends GeneratorOptionsBui
     public static final String OPT_REQUIRED_PROPERTIES_IN_CONSTRUCTOR = "requiredPropertiesInConstructor";
     public static final String OPT_USE_AUTH = "useAuth";
     public static final String OPT_USE_LOMBOK = "lombok";
+    public static final String OPT_DOCS_FORMAT = "docsFormat";
     public static final String OPT_GENERATE_ENUM_CONVERTERS = "generateEnumConverters";
     public static final String OPT_NO_ARGS_CONSTRUCTOR = "noArgsConstructor";
     public static final String OPT_USE_PLURAL = "plural";
@@ -162,6 +164,8 @@ public abstract class AbstractMicronautJavaCodegen<T extends GeneratorOptionsBui
     public static final String CONTENT_TYPE_MULTIPART_FORM_DATA = "multipart/form-data";
     public static final String CONTENT_TYPE_ANY = "*/*";
 
+    public static final String EXTENSION_DOCS_FORMAT = "x-docs-format";
+
     private static final String MONO_CLASS_NAME = "reactor.core.publisher.Mono";
     private static final String FLUX_CLASS_NAME = "reactor.core.publisher.Flux";
 
@@ -170,6 +174,7 @@ public abstract class AbstractMicronautJavaCodegen<T extends GeneratorOptionsBui
     protected boolean useOptional;
     protected boolean visitable;
     protected boolean lombok;
+    protected DocsFormat docsFormat = DocsFormat.PLAIN;
     protected boolean generateEnumConverters = true;
     protected boolean noArgsConstructor;
     protected boolean fluxForArrays;
@@ -333,6 +338,15 @@ public abstract class AbstractMicronautJavaCodegen<T extends GeneratorOptionsBui
         serializationLibraryOptions.put(SerializationLibraryKind.MICRONAUT_SERDE_JACKSON.name(), "Use micronaut-serialization with Jackson annotations");
         serializationLibraryOpt.setEnum(serializationLibraryOptions);
         cliOptions.add(serializationLibraryOpt);
+
+        final CliOption docsFormatOpt = CliOption.newString(OPT_DOCS_FORMAT, "Documentation fields conversion mode");
+        docsFormatOpt.defaultValue(DocsFormat.PLAIN.name());
+        var docsFormatOptions = new HashMap<String, String>();
+        docsFormatOptions.put(DocsFormat.PLAIN.name(), "Don't use any conversion for documentation");
+        docsFormatOptions.put(DocsFormat.HTML_TO_MD.name(), "Convert documentation from HTML format to Markdown");
+        docsFormatOptions.put(DocsFormat.MD_TO_HTML.name(), "Convert documentation from Markdown format to HTML");
+        docsFormatOpt.setEnum(docsFormatOptions);
+        cliOptions.add(docsFormatOpt);
 
         // Add reserved words
         var micronautReservedWords = List.of(
@@ -643,6 +657,10 @@ public abstract class AbstractMicronautJavaCodegen<T extends GeneratorOptionsBui
         maybeSetSwagger();
         if (OPT_GENERATE_SWAGGER_ANNOTATIONS_SWAGGER_2.equals(generateSwaggerAnnotations)) {
             additionalProperties.put("generateSwagger2Annotations", true);
+        }
+
+        if (additionalProperties.containsKey(OPT_DOCS_FORMAT)) {
+            setDocsFormat((String) additionalProperties.get(OPT_DOCS_FORMAT));
         }
 
         if (additionalProperties.containsKey(CodegenConstants.SERIALIZATION_LIBRARY)) {
@@ -1482,12 +1500,8 @@ public abstract class AbstractMicronautJavaCodegen<T extends GeneratorOptionsBui
                 || op.httpMethod.equals("OPTIONS")
                 || op.httpMethod.equals("DELETE")
             );
-            if (StringUtils.isNotEmpty(op.notes)) {
-                op.notes = op.notes.strip();
-            }
-            if (StringUtils.isNotEmpty(op.summary)) {
-                op.summary = op.summary.strip();
-            }
+            op.notes = convertDocs(op.notes.strip());
+            op.summary = convertDocs(op.summary.strip());
 
             normalizeExtraAnnotations(EXT_ANNOTATIONS_OPERATION, false, op.vendorExtensions);
 
@@ -2696,13 +2710,25 @@ public abstract class AbstractMicronautJavaCodegen<T extends GeneratorOptionsBui
             .put("replaceDotsWithUnderscore", new ReplaceDotsWithUnderscoreLambda());
     }
 
+    public void setDocsFormat(final String docsFormat) {
+        try {
+            this.docsFormat = DocsFormat.valueOf(docsFormat.toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            var sb = new StringBuilder(docsFormat + " is an invalid enum property naming option. Please choose from:");
+            for (var value : DocsFormat.values()) {
+                sb.append("\n  ").append(value.name());
+            }
+            throw new RuntimeException(sb.toString());
+        }
+    }
+
     public void setSerializationLibrary(final String serializationLibrary) {
         try {
-            this.serializationLibrary = SerializationLibraryKind.valueOf(serializationLibrary).name();
+            this.serializationLibrary = SerializationLibraryKind.valueOf(serializationLibrary.toUpperCase()).name();
         } catch (IllegalArgumentException ex) {
-            StringBuilder sb = new StringBuilder(serializationLibrary + " is an invalid enum property naming option. Please choose from:");
-            for (SerializationLibraryKind availableSerializationLibrary : SerializationLibraryKind.values()) {
-                sb.append("\n  ").append(availableSerializationLibrary.name());
+            var sb = new StringBuilder(serializationLibrary + " is an invalid enum property naming option. Please choose from:");
+            for (var value : SerializationLibraryKind.values()) {
+                sb.append("\n  ").append(value.name());
             }
             throw new RuntimeException(sb.toString());
         }

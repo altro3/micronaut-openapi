@@ -667,4 +667,11 @@ public final class Utils {
 
         return true;
     }
+
+    public static String convertDocs(String docs, DocsFormat format) {
+        if (StringUtils.isEmpty(docs)) {
+            return docs;
+        }
+        return docs.strip();
+    }
 }
