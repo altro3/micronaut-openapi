@@ -73,6 +73,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.DiscriminatorMapping;
 import io.swagger.v3.oas.annotations.media.Encoding;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema.AdditionalPropertiesValue;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.OAuthScope;
 import io.swagger.v3.oas.annotations.servers.Server;
@@ -153,6 +154,7 @@ import static io.micronaut.openapi.visitor.ElementUtils.isFileUpload;
 import static io.micronaut.openapi.visitor.ElementUtils.isJavaRecord;
 import static io.micronaut.openapi.visitor.ElementUtils.isJavaRecordType;
 import static io.micronaut.openapi.visitor.ElementUtils.isJavaUtilCollectionType;
+import static io.micronaut.openapi.visitor.ElementUtils.isJsonNode;
 import static io.micronaut.openapi.visitor.ElementUtils.isNotNullable;
 import static io.micronaut.openapi.visitor.ElementUtils.isNullable;
 import static io.micronaut.openapi.visitor.ElementUtils.isTypeWithGenericNullable;
@@ -435,8 +437,8 @@ public final class SchemaDefinitionUtils {
                 if (schema == null) {
 
                     if (type instanceof EnumElement enumEl && isEnum(enumEl)) {
-                        schema = createSchema();
-                        schema.setName(schemaName);
+                        schema = createSchema()
+                            .name(schemaName);
                         processJacksonDescription(enumEl, schema);
                         if (schema.getDescription() == null && javadoc != null && StringUtils.hasText(javadoc.getMethodDescription())) {
                             schema.setDescription(javadoc.getMethodDescription());
@@ -482,7 +484,8 @@ public final class SchemaDefinitionUtils {
             if (schema == null) {
                 if (inProgressSchemas.contains(schemaName)) {
                     // Break recursion
-                    return createSchema().$ref(SchemaUtils.schemaRef(schemaName));
+                    return createSchema()
+                        .$ref(SchemaUtils.schemaRef(schemaName));
                 }
                 inProgressSchemas.add(schemaName);
                 try {
@@ -873,6 +876,17 @@ public final class SchemaDefinitionUtils {
             if (isArray != null && isArray) {
                 schema = SchemaUtils.arraySchema(schema);
             }
+        } else if (isJsonNode(type)) {
+            schema = createSchema()
+                .additionalProperties(true);
+            if (schemaAnnValue != null) {
+                var addProps = schemaAnnValue.get(PROP_ADDITIONAL_PROPERTIES, AdditionalPropertiesValue.class).orElse(null);
+                if (addProps == null || addProps == AdditionalPropertiesValue.TRUE) {
+                    schema.additionalProperties(true);
+                } else if (addProps == AdditionalPropertiesValue.FALSE) {
+                    schema.additionalProperties(null);
+                }
+            }
         } else if (type != null) {
 
             boolean isPublisher = false;
@@ -940,7 +954,7 @@ public final class SchemaDefinitionUtils {
                     // For file upload, we use PrimitiveType.BINARY
                     typeName = PrimitiveType.BINARY.name();
                 }
-                PrimitiveType primitiveType = PrimitiveType.fromName(typeName);
+                var primitiveType = PrimitiveType.fromName(typeName);
                 schema = protobufTypeSchema(type);
                 if (schema != null) {
                     return schema;
@@ -1480,9 +1494,9 @@ public final class SchemaDefinitionUtils {
                         newValues.put(key, a);
                     }
                 } else if (key.equals(PROP_ADDITIONAL_PROPERTIES)) {
-                    if (io.swagger.v3.oas.annotations.media.Schema.AdditionalPropertiesValue.TRUE.toString().equals(value.toString())) {
+                    if (AdditionalPropertiesValue.TRUE.toString().equals(value.toString())) {
                         newValues.put(PROP_ADDITIONAL_PROPERTIES, true);
-                    } else if (io.swagger.v3.oas.annotations.media.Schema.AdditionalPropertiesValue.FALSE.toString().equals(value.toString())) {
+                    } else if (AdditionalPropertiesValue.FALSE.toString().equals(value.toString())) {
                         newValues.put(PROP_ADDITIONAL_PROPERTIES, false);
                     }
                     // TODO
@@ -1733,7 +1747,7 @@ public final class SchemaDefinitionUtils {
                 required = true;
             }
 
-            // check JsonInclude mode, if swagger schema required mode not set
+            // check JsonInclude mode if swagger schema required mode not set
             if (reqMode.elementSchemaRequired() == null) {
                 var classJsonIncludeAnn = classEl != null ? getAnnotation(classEl, JsonInclude.class) : null;
                 JsonInclude.Include classIncludeMode = null;
@@ -2363,10 +2377,10 @@ public final class SchemaDefinitionUtils {
 
         var addProps = (String) annValues.get(PROP_ADDITIONAL_PROPERTIES);
         if (StringUtils.isNotEmpty(addProps)) {
-            var schemaAdditionalProperties = io.swagger.v3.oas.annotations.media.Schema.AdditionalPropertiesValue.valueOf(addProps);
-            if (schemaAdditionalProperties == io.swagger.v3.oas.annotations.media.Schema.AdditionalPropertiesValue.TRUE) {
+            var schemaAdditionalProperties = AdditionalPropertiesValue.valueOf(addProps);
+            if (schemaAdditionalProperties == AdditionalPropertiesValue.TRUE) {
                 schemaToBind.additionalProperties(true);
-            } else if (schemaAdditionalProperties == io.swagger.v3.oas.annotations.media.Schema.AdditionalPropertiesValue.FALSE) {
+            } else if (schemaAdditionalProperties == AdditionalPropertiesValue.FALSE) {
                 schemaToBind.additionalProperties(false);
             }
         }
