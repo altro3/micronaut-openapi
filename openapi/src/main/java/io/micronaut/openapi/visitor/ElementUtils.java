@@ -102,6 +102,7 @@ public final class ElementUtils {
         "io.reactivex.rxjava3.core.Single",
         "io.reactivex.rxjava3.core.Observable",
         "io.reactivex.rxjava3.core.Maybe",
+        "kotlin.Result",
         "kotlinx.coroutines.flow.Flow",
         "org.springframework.web.context.request.async.DeferredResult",
         "org.springframework.boot.actuate.endpoint.web.WebEndpointResponse"
