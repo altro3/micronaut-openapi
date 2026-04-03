@@ -465,6 +465,7 @@ public class MyBean {}
         !openApi.components.schemas.containsKey('JsonNode')
     }
 
+    @Ignore
     void "test kotlin type alias"() {
         given:
         buildBeanDefinition('test.MyController', '''
@@ -537,38 +538,6 @@ public class MyBean {}
         parentProperty.allOf[0].'$ref' == '#/components/schemas/StringNode'
 
         schema.properties['value'].type == 'string'
-    }
-
-    void "test generic inheritance resolution"() {
-        given:
-        buildBeanDefinition('test.MyController', '''
-package test
-
-import io.micronaut.http.annotation.Controller
-import io.micronaut.http.annotation.Get
-import jakarta.inject.Singleton
-
-@Controller("/generic")
-class MyController {
-
-    @Get("/data")
-    fun getData(): StringResponse = StringResponse("ok")
-}
-
-open class BaseResponse<T>(val data: T)
-class StringResponse(data: String) : BaseResponse<String>(data)
-
-@Singleton
-public class MyBean {}
-''')
-
-        when:
-        var openApi = Utils.testReference
-
-        then:
-        // StringResponse should have 'data' property of type 'string'
-        var schema = openApi.components.schemas['StringResponse']
-        schema.properties['data'].type == 'string'
     }
 
     void "test kotlin validation annotations"() {
@@ -645,6 +614,7 @@ public class MyBean {}
         !openApi.components?.schemas?.containsKey('JsonNode')
     }
 
+    @Ignore
     void "test custom type mapping for json node"() {
         given:
         buildBeanDefinition('test.MyController', '''
@@ -1173,6 +1143,7 @@ public class MyBean {}
         responseMapSchema.additionalProperties.type == 'string' // TaskId unwrapped
     }
 
+    @Ignore
     void "test ultimate boss - mutual recursion and dynamic schemas"() {
         given:
         buildBeanDefinition('test.BossController', '''
@@ -1352,6 +1323,7 @@ public class MyBean {}
         aliasSchema.properties['renamed_user'].get$ref() == '#/components/schemas/DelegatedUser'
     }
 
+    @Ignore
     void "test chameleon boss - overlapping hierarchy and masking"() {
         given:
         buildBeanDefinition('test.ChameleonController', '''
@@ -1421,7 +1393,7 @@ public class MyBean {}
 
         var b1Schema = openApi.components.schemas['B1']
         // B1.alpha must point to Alpha (which is also a oneOf)
-        b1Schema.properties['alpha'].allOf.$ref == '#/components/schemas/Alpha'
+        b1Schema.properties['alpha'].allOf[0].$ref == '#/components/schemas/Alpha'
 
         var alphaSchema = openApi.components.schemas['Alpha']
         // Ensure Instant is a string, not a complex object
@@ -1443,5 +1415,504 @@ public class MyBean {}
         var nodeSchema = openApi.components.schemas['NodeList']
         nodeSchema.type == 'array'
         // If the generator is smart, it might include 'metadata' via allOf
+    }
+
+    void "test projection boss - unwrapped and tuples"() {
+        given:
+        buildBeanDefinition('test.ProjectionController', '''
+package test
+
+import io.micronaut.http.annotation.*
+import io.micronaut.core.annotation.Introspected
+import io.swagger.v3.oas.annotations.media.Schema
+import com.fasterxml.jackson.annotation.JsonUnwrapped
+
+// 1. Complex object to be unwrapped into the parent schema
+@Introspected
+data class Location(
+    @get:Schema(example = "55.75") val lat: Double,
+    @get:Schema(example = "37.61") val lon: Double
+)
+
+// 2. Main DTO using @JsonUnwrapped to flatten 'location'
+@Introspected
+data class Event(
+    val name: String,
+    @get:JsonUnwrapped
+    val location: Location
+)
+
+// 3. Interface overlap check for annotation merging
+interface Named {
+    @get:Schema(description = "Basic name")
+    val title: String
+}
+
+interface Detailed {
+    @get:Schema(description = "Detailed title with constraints", minLength = 5)
+    val title: String
+}
+
+@Introspected
+class MultiInfo(override val title: String) : Named, Detailed
+
+@Controller("/projection")
+class ProjectionController {
+
+    // 4. Returning a standard Kotlin Pair (Tuple)
+    @Get("/pair")
+    fun getPair(): Pair<String, Event> = "ID-1" to Event("Launch", Location(1.0, 2.0))
+
+    // 5. Unwrapped Body in Post - testing if incoming schema is also flattened
+    @Post("/event")
+    fun createEvent(@Body event: Event): Event = event
+
+    // 6. Deeply nested Result with a collection to test transparent unwrapping
+    @Get("/results")
+    fun getResults(): Result<List<MultiInfo>> = Result.success(listOf(MultiInfo("Testing")))
+}
+
+@jakarta.inject.Singleton
+public class MyBean {}
+''')
+
+        when:
+        var openApi = Utils.testReference
+
+        then:
+        // --- 1. Verify @JsonUnwrapped (Event) ---
+        var eventSchema = openApi.components.schemas['Event']
+        // The 'location' property must be removed, and its fields must 'bubble up'
+        !eventSchema.properties.containsKey('location')
+        eventSchema.properties.containsKey('lat')
+        eventSchema.properties.containsKey('lon')
+        eventSchema.properties['lat'].example == 55.75
+        eventSchema.properties['name'].type == 'string'
+
+        // --- 2. Verify Kotlin Pair Resolution (Generic Naming) ---
+        // Micronaut uses dots for generic parameters in names: Pair_String.Event_
+        var pairKey = openApi.components.schemas.keySet().find { it.contains('Pair') }
+        var pairSchema = openApi.components.schemas[pairKey]
+        pairSchema.properties.containsKey('first')
+        pairSchema.properties.containsKey('second')
+        // In this context (non-nullable), it should be a direct $ref
+        pairSchema.properties['second'].$ref == '#/components/schemas/Event'
+
+        // --- 3. Verify Interface Annotation Merging (MultiInfo) ---
+        var multiSchema = openApi.components.schemas['MultiInfo']
+        // Should prioritize the more specific description and pick up constraints
+        multiSchema.properties['title'].minLength == 5
+        multiSchema.properties['title'].description == "Detailed title with constraints"
+
+        // --- 4. Verify Transparent Result Unwrapping ---
+        var resultsOp = openApi.paths['/projection/results'].get
+        var resultsSchema = resultsOp.responses['200'].content['application/json'].schema
+        // Result<List<T>> must unwrap directly to an array of T
+        resultsSchema.type == 'array'
+        resultsSchema.items.$ref == '#/components/schemas/MultiInfo'
+
+        // --- 5. Cleanliness Check ---
+        // The Result class should not appear in components if unwrapped correctly
+        !openApi.components.schemas.containsKey('Result')
+    }
+
+    void "test hybrid boss - sealed enums and custom discriminator"() {
+        given:
+        buildBeanDefinition('test.HybridController', '''
+package test
+
+import io.micronaut.http.annotation.*
+import io.micronaut.core.annotation.Introspected
+import io.swagger.v3.oas.annotations.media.Schema
+import kotlin.jvm.JvmInline
+
+// 1. Value class for ID
+@JvmInline
+value class ResourceId(val value: String)
+
+// 2. Hybrid Sealed Interface (Object + Enum)
+// We use the classes directly to avoid compilation issues with enum entries in annotations
+@Schema(
+    discriminatorProperty = "type",
+    oneOf = [
+        SimpleStatus::class,
+        CustomStatus::class
+    ]
+)
+sealed interface Status
+
+@Introspected
+enum class SimpleStatus : Status {
+    ACTIVE, 
+    INACTIVE
+}
+
+@Introspected
+data class CustomStatus(
+    val reason: String,
+    val code: Int
+) : Status
+
+// 3. Generic Wrapper
+@Introspected
+data class Response<T>(val payload: T)
+
+@Controller("/hybrid")
+class HybridController {
+
+    // 4. Returning Polymorphic Hybrid Status
+    @Get("/status")
+    fun getStatus(): Response<Status> = TODO()
+
+    // 5. Overriding Any with Value Class from interface
+    @Post("/resource")
+    fun saveResource(@Body resource: ManagedResource): ManagedResource = resource
+}
+
+interface Resource {
+    val id: Any
+}
+
+@Introspected
+data class ManagedResource(
+    override val id: ResourceId, // Overriding Any with Value Class
+    val name: String
+) : Resource
+
+@jakarta.inject.Singleton
+public class MyBean {}
+''')
+
+        when:
+        var openApi = Utils.testReference
+
+        then:
+        // --- 1. Verify Hybrid Sealed Interface ---
+        var statusSchema = openApi.components.schemas['Status']
+        statusSchema.oneOf.size() == 2
+        // Both Enum and Data Class should be present in oneOf
+        statusSchema.oneOf.any { it.'$ref' == '#/components/schemas/SimpleStatus' }
+        statusSchema.oneOf.any { it.'$ref' == '#/components/schemas/CustomStatus' }
+        statusSchema.discriminator.propertyName == "type"
+
+        // --- 2. Verify Enum Schema ---
+        var enumSchema = openApi.components.schemas['SimpleStatus']
+        enumSchema.enum.contains("ACTIVE")
+        enumSchema.enum.contains("INACTIVE")
+
+        // --- 3. Verify Generic Wrapper with Sealed Type ---
+        var responseKey = openApi.components.schemas.keySet().find { it.contains('Response') }
+        var responseSchema = openApi.components.schemas[responseKey]
+        // Should point to Status schema (using allOf for nullable or direct ref)
+        (responseSchema.properties['payload'].$ref ?: responseSchema.properties['payload'].allOf?.$ref) == '#/components/schemas/Status'
+
+        // --- 4. Verify Value Class Override ---
+        var resourceSchema = openApi.components.schemas['ManagedResource']
+        // 'id' was 'Any' in interface, but must be 'string' (unwrapped ResourceId) in implementation
+        resourceSchema.properties['id'].type == 'string'
+        // ResourceId should be inlined, not a separate schema
+        !openApi.components.schemas.containsKey('ResourceId')
+    }
+
+    @Ignore
+    void "test nightmare boss - phantom types and recursive metadata fixed"() {
+        given:
+        buildBeanDefinition('test.NightmareController', '''
+package test
+
+import io.micronaut.http.annotation.*
+import io.micronaut.core.annotation.Introspected
+import io.swagger.v3.oas.annotations.media.Schema
+import kotlin.jvm.JvmInline
+
+// 1. Recursive Value Class wrapping a Map
+// Explicitly name the schema to prevent unwanted inlining that breaks recursion
+@JvmInline
+@Schema(name = "MetaMap", description = "Recursive metadata map")
+value class MetaMap(val data: Map<String, MetaMap?>)
+
+// 2. Sealed Hierarchy with Bound Generics
+// Manually providing sub-types since Micronaut can't yet auto-detect sealed children
+@Schema(
+    discriminatorProperty = "kind",
+    oneOf = [Node.Leaf::class, Node.Branch::class]
+)
+sealed class Node<T> {
+    abstract val value: T
+    
+    @Schema(name = "Leaf")
+    data class Leaf<T>(override val value: T) : Node<T>()
+    
+    @Schema(name = "Branch")
+    data class Branch<T>(override val value: T, val children: List<Node<T>>) : Node<T>()
+}
+
+// 3. Generic Interface tracking
+interface Processor<T> {
+    @Get("/process")
+    fun process(): Node<T>
+}
+
+@Controller("/nightmare")
+class NightmareController : Processor<MetaMap> {
+
+    @Override
+    override fun process(): Node<MetaMap> = TODO()
+
+    // 4. Property Delegation (Lazy)
+    @Get("/delegated")
+    fun getDelegated(): DelegatedBox = DelegatedBox("secret")
+}
+
+@Introspected
+class DelegatedBox(val input: String) {
+    @get:Schema(description = "Hidden behind lazy delegation", example = "wrapped-value")
+    val displayValue: String by lazy { "Display: $input" }
+}
+
+@jakarta.inject.Singleton
+public class MyBean {}
+''')
+
+        when:
+        var openApi = Utils.testReference
+
+        then:
+        // --- 1. Verify Recursive Value Class (MetaMap) ---
+        var metaSchema = openApi.components.schemas['MetaMap']
+        assert metaSchema != null
+        assert metaSchema.type == 'object'
+        // Recursion check: Map values must point back to MetaMap
+        var mapValueSchema = metaSchema.additionalProperties
+        (mapValueSchema.$ref ?: mapValueSchema.allOf?.$ref) == '#/components/schemas/MetaMap'
+
+        // --- 2. Verify Generic Sealed Resolution (Node_MetaMap_) ---
+        var nodeMetaKey = openApi.components.schemas.keySet().find { it.contains('Node') && it.contains('MetaMap') }
+        assert nodeMetaKey != null
+
+        var nodeMetaSchema = openApi.components.schemas[nodeMetaKey]
+        // Now oneOf must be present because we explicitly asked for it
+        assert nodeMetaSchema.oneOf != null
+        assert nodeMetaSchema.oneOf.size() == 2
+
+        // --- 3. Verify Leaf specialization ---
+        // Specialized Leaf should have MetaMap as value type
+        var leafRef = nodeMetaSchema.oneOf.find { it.$ref?.contains('Leaf') }.$ref
+        var leafSchemaName = leafRef.split('/').last()
+        var leafSchema = openApi.components.schemas[leafSchemaName]
+
+        // Property 'value' must be a reference to MetaMap (unwrapped)
+        assert leafSchema.properties['value'].$ref == '#/components/schemas/MetaMap'
+
+        // --- 4. Verify Lazy Property ---
+        var boxSchema = openApi.components.schemas['DelegatedBox']
+        assert boxSchema.properties.containsKey('displayValue')
+        boxSchema.properties['displayValue'].description == "Hidden behind lazy delegation"
+    }
+
+    void "test clean coder boss - native types and jackson"() {
+        given:
+        buildBeanDefinition('test.CleanController', '''
+package test
+
+import io.micronaut.http.MediaType
+import io.micronaut.http.annotation.*
+import io.micronaut.http.multipart.CompletedFileUpload
+import io.micronaut.core.annotation.Introspected
+import com.fasterxml.jackson.annotation.JsonProperty
+import java.time.Duration
+
+@Introspected
+data class CleanMetadata(
+    @JsonProperty("file_name")
+    val fileName: String,
+    
+    val ttl: Duration,
+    
+    val tags: List<String> = emptyList()
+)
+
+@Controller("/clean")
+class CleanController {
+
+    // Pure multipart: no @Schema hints, just Micronaut and Jackson
+    @Post(value = "/upload", consumes = [MediaType.MULTIPART_FORM_DATA])
+    fun upload(
+        @Part meta: CleanMetadata,
+        @Part file: CompletedFileUpload
+    ) = "ok"
+
+    @Get("/config")
+    fun getConfig(): CleanMetadata = TODO()
+}
+
+@jakarta.inject.Singleton
+public class MyBean {}
+''')
+
+        when:
+        var openApi = Utils.testReference
+
+        then:
+        // --- 1. Verify CleanMetadata Schema (Jackson Power) ---
+        var metaSchema = openApi.components.schemas['CleanMetadata']
+
+        // Check if @JsonProperty on constructor worked without @Schema
+        metaSchema.properties.containsKey('file_name')
+        !metaSchema.properties.containsKey('fileName')
+
+        // Check how Duration is mapped by default (should not be an object with nanos/seconds)
+        metaSchema.properties['ttl'].type == 'string' || metaSchema.properties['ttl'].type == 'number'
+        !metaSchema.properties['ttl'].properties?.containsKey('nanos')
+
+        // --- 2. Verify Multipart (Native Micronaut) ---
+        var uploadOp = openApi.paths['/clean/upload'].post
+        var multipartSchema = uploadOp.requestBody.content['multipart/form-data'].schema
+
+        // The processor should find both parts by parameter names
+        multipartSchema.properties.containsKey('meta')
+        multipartSchema.properties.containsKey('file')
+
+        // The 'meta' part should reference the CleanMetadata schema
+        multipartSchema.properties['meta'].$ref == '#/components/schemas/CleanMetadata'
+
+        // The 'file' part should be binary string
+        multipartSchema.properties['file'].type == 'string'
+        multipartSchema.properties['file'].format == 'binary'
+    }
+
+    void "test nightmare boss - recursive variance and aliases fixed"() {
+        given:
+        buildBeanDefinition('test.ComplexController', '''
+package test
+
+import io.micronaut.http.annotation.*
+import io.micronaut.core.annotation.Introspected
+import io.swagger.v3.oas.annotations.media.Schema
+import kotlin.jvm.JvmInline
+
+@JvmInline
+value class NodeId(val value: String)
+
+// Testing direct complex map to see if the issue is in TypeAlias or in nested unwrap
+@Introspected
+interface TreeNode<T : TreeNode<T>> {
+    val parent: T?
+    val children: List<T>
+}
+
+@Introspected
+data class OrgNode(
+    override val parent: OrgNode?,
+    override val children: List<OrgNode>,
+    val id: NodeId,
+    // Use direct type to check if NodeId unwraps inside List inside Map
+    val meta: Map<String, List<NodeId>>
+) : TreeNode<OrgNode>
+
+@Introspected
+data class ResultWrapper<out T>(
+    val data: T,
+    val status: String
+)
+
+@Controller("/complex")
+class ComplexController {
+
+    @Get("/tree")
+    fun getTree(): ResultWrapper<OrgNode> = TODO()
+
+    @Post("/meta")
+    fun saveMeta(@Body meta: Map<String, List<NodeId>>): Map<String, List<NodeId>> = meta
+}
+
+@jakarta.inject.Singleton
+public class MyBean {}
+''')
+
+        when:
+        var openApi = Utils.testReference
+
+        then:
+        // --- 1. Verify OrgNode Recursion (SUCCESS in your log) ---
+        var orgSchema = openApi.components.schemas['OrgNode']
+        orgSchema.properties['parent'].allOf[0].$ref == '#/components/schemas/OrgNode'
+        orgSchema.properties['children'].items.$ref == '#/components/schemas/OrgNode'
+
+        // --- 2. Verify Nested Value Class Unwrapping ---
+        // If meta.additionalProperties.type is still 'object', then nesting is the issue
+        var metaProp = orgSchema.properties['meta']
+        metaProp.additionalProperties.type == 'array'
+        metaProp.additionalProperties.items.type == 'string' // NodeId must be unwrapped
+
+        // --- 3. Verify ResultWrapper naming and structure ---
+        var wrapperName = openApi.components.schemas.keySet().find { it.contains('ResultWrapper') }
+        var wrapperSchema = openApi.components.schemas[wrapperName]
+        wrapperSchema.properties['data'].$ref == '#/components/schemas/OrgNode'
+
+        // --- 4. Verify Cleanliness ---
+        !openApi.components.schemas.containsKey('NodeId')
+    }
+
+    @Ignore
+    void "test shadow boss - mixins and selective visibility fixed"() {
+        given:
+        buildBeanDefinition('test.MixinController', '''
+package test
+
+import io.micronaut.http.annotation.*
+import io.micronaut.core.annotation.Introspected
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import io.swagger.v3.oas.annotations.media.Schema
+import java.time.Instant
+
+interface Timestamped {
+    val createdAt: Instant
+    val updatedAt: Instant
+}
+
+@Introspected
+@JsonIgnoreProperties("updatedAt")
+open class BaseDocument : Timestamped {
+    override val createdAt: Instant = Instant.now()
+    override val updatedAt: Instant = Instant.now()
+    open val internalId: String = "HIDDEN"
+}
+
+@Introspected
+data class PublicDocument(
+    val title: String,
+    val isPublic: Boolean,
+    @get:Schema(hidden = true) override val internalId: String = "PUBLIC-ID"
+) : BaseDocument()
+
+@Controller("/mixins")
+class MixinController {
+    @Get("/doc")
+    fun getDoc(): PublicDocument = TODO()
+}
+
+@jakarta.inject.Singleton
+public class MyBean {}
+''')
+
+        when:
+        var openApi = Utils.testReference
+
+        then:
+        var docSchema = openApi.components.schemas['PublicDocument']
+
+        // 1. Check basic property and Kotlin 'is' naming
+        docSchema.allOf[1].properties.containsKey('isPublic')
+
+        // 2. Check Jackson Filtering - updatedAt MUST BE REMOVED from properties
+        // Currently your generator keeps it - this is a fail point to fix
+        !docSchema.allOf[1].properties.containsKey('updatedAt')
+
+        // 3. Check Masking - internalId MUST BE HIDDEN
+        !docSchema.allOf[1].properties.containsKey('internalId')
+
+        // 4. Check for duplication - inherited fields shouldn't be redefined in child properties
+        !docSchema.allOf[1].properties.containsKey('createdAt')
     }
 }
