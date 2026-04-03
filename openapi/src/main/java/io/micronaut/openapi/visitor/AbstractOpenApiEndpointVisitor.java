@@ -109,6 +109,7 @@ import static io.micronaut.openapi.visitor.ContextProperty.MICRONAUT_INTERNAL_IS
 import static io.micronaut.openapi.visitor.ContextUtils.get;
 import static io.micronaut.openapi.visitor.ContextUtils.warn;
 import static io.micronaut.openapi.visitor.ConvertUtils.MAP_TYPE;
+import static io.micronaut.openapi.visitor.ElementUtils.getFirstNonContainerType;
 import static io.micronaut.openapi.visitor.ElementUtils.getJsonViewClass;
 import static io.micronaut.openapi.visitor.ElementUtils.hasNoBindingAnnotationOrType;
 import static io.micronaut.openapi.visitor.ElementUtils.isDeprecated;
@@ -694,14 +695,14 @@ public abstract class AbstractOpenApiEndpointVisitor extends AbstractOpenApiVisi
                                 // we can set application/octet-stream for file upload classes
                                 Encoding encoding = encodings.get(prop);
                                 if (encoding == null) {
-                                    if (isFileUpload(parameter.getType())
-                                        || isMapOfMultipartFiles(parameter)
-                                        || isMapOfListOfMultipartFiles(parameter)
-                                        || isIterableOfMultipartFiles(parameter)) {
+                                    if (isFileUpload(parameter.getType(), context)
+                                        || isMapOfMultipartFiles(parameter, context)
+                                        || isMapOfListOfMultipartFiles(parameter, context)
+                                        || isIterableOfMultipartFiles(parameter, context)) {
 
                                         encodings.put(prop, new Encoding()
                                             .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                                            .explode(isIterableOfMultipartFiles(parameter) || isMapOfListOfMultipartFiles(parameter)));
+                                            .explode(isIterableOfMultipartFiles(parameter, context) || isMapOfListOfMultipartFiles(parameter, context)));
                                     } else if (isMapOfStrings(parameter)) {
                                         encodings.put(parameter.getName(), new Encoding()
                                             .contentType(MediaType.TEXT_PLAIN));
@@ -1000,7 +1001,7 @@ public abstract class AbstractOpenApiEndpointVisitor extends AbstractOpenApiVisi
         if (propertySchema == null) {
             return;
         }
-        if (isMapOfMultipartFiles(parameter) || isMapOfListOfMultipartFiles(parameter)) {
+        if (isMapOfMultipartFiles(parameter, context) || isMapOfListOfMultipartFiles(parameter, context)) {
             propertySchema = (Schema) propertySchema.getAdditionalProperties();
         }
 
@@ -1087,7 +1088,7 @@ public abstract class AbstractOpenApiEndpointVisitor extends AbstractOpenApiVisi
             // public void endpoint2(@RequestParam Map<String, MultipartFile> files)
             // because, `@RequestParam` annotation mapped to `@QueryValue`, but it's required for Spring Boot
             // fix only for Map<String, MultipartFile>
-            if (isMapOfMultipartFiles(parameter) || isMapOfListOfMultipartFiles(parameter) || isIterableOfMultipartFiles(parameter)) {
+            if (isMapOfMultipartFiles(parameter, context) || isMapOfListOfMultipartFiles(parameter, context) || isIterableOfMultipartFiles(parameter, context)) {
                 extraBodyParameters.add(parameter);
                 isExtraBodyParam = true;
             } else if (isMapOfStrings(parameter)) {
@@ -1470,9 +1471,9 @@ public abstract class AbstractOpenApiEndpointVisitor extends AbstractOpenApiVisi
     }
 
     private ClassElement returnType(MethodElement element, VisitorContext context) {
-        ClassElement returnType = element.getGenericReturnType();
+        ClassElement returnType = getFirstNonContainerType(element.getGenericReturnType(), context);
 
-        if (ElementUtils.isVoid(returnType) || ElementUtils.isReactiveAndVoid(returnType)) {
+        if (ElementUtils.isVoid(returnType) || ElementUtils.isReactiveAndVoid(returnType, context)) {
             returnType = null;
         } else if (isResponseType(returnType)) {
             returnType = returnType.getFirstTypeArgument().orElse(returnType);

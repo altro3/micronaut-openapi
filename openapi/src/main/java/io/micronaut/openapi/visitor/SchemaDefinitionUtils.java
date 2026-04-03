@@ -148,6 +148,7 @@ import static io.micronaut.openapi.visitor.ElementUtils.TYPE_ARG_MAP_VALUE;
 import static io.micronaut.openapi.visitor.ElementUtils.findAnnotation;
 import static io.micronaut.openapi.visitor.ElementUtils.getAnnotation;
 import static io.micronaut.openapi.visitor.ElementUtils.getAnnotationMetadata;
+import static io.micronaut.openapi.visitor.ElementUtils.getFirstNonContainerType;
 import static io.micronaut.openapi.visitor.ElementUtils.isAnnotationPresent;
 import static io.micronaut.openapi.visitor.ElementUtils.isDeprecated;
 import static io.micronaut.openapi.visitor.ElementUtils.isEnum;
@@ -950,7 +951,7 @@ public final class SchemaDefinitionUtils {
                 }
 
                 // File upload case
-                if (isFileUpload(type)) {
+                if (isFileUpload(type, context)) {
                     isPublisher = isPublisher && !"io.micronaut.http.multipart.PartData".equals(typeName);
                     // For file upload, we use PrimitiveType.BINARY
                     typeName = PrimitiveType.BINARY.name();
@@ -1656,7 +1657,7 @@ public final class SchemaDefinitionUtils {
             return schemaToBind;
         }
         if (ElementUtils.isContainerType(classEl)) {
-            classEl = classEl.getFirstTypeArgument().orElse(context.getClassElement(Object.class).orElse(classEl));
+            classEl = getFirstNonContainerType(classEl, context);
         }
         Pair<String, String> typeAndFormat;
         if (classEl.isIterable()) {
