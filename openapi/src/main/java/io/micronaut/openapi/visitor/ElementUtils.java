@@ -59,6 +59,7 @@ import java.io.InputStream;
 import java.lang.annotation.Annotation;
 import java.nio.ByteBuffer;
 import java.security.Principal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -88,37 +89,55 @@ public final class ElementUtils {
 
     public static final AnnotationValue<?>[] EMPTY_ANNOTATION_VALUES_ARRAY = new AnnotationValue[0];
 
-    public static final List<String> CONTAINER_TYPES = List.of(
+    public static final List<String> ARRAY_CONTAINER_TYPES = List.of(
+        "io.reactivex.Flowable",
+        "io.reactivex.Observable",
+        "io.reactivex.rxjava3.core.Flowable",
+        "io.reactivex.rxjava3.core.Observable",
+        "reactor.core.publisher.Flux",
+        "kotlinx.coroutines.flow.Flow",
+        "org.reactivestreams.Publisher",
+        "io.smallrye.mutiny.Multi"
+    );
+
+    public static final List<String> SINGLE_CONTAINER_TYPES = List.of(
         AtomicReference.class.getName(),
         "com.google.common.base.Optional",
         Optional.class.getName(),
         Future.class.getName(),
         Callable.class.getName(),
         CompletionStage.class.getName(),
-        "org.reactivestreams.Publisher",
         "io.reactivex.Single",
-        "io.reactivex.Observable",
         "io.reactivex.Maybe",
         "io.reactivex.rxjava3.core.Single",
-        "io.reactivex.rxjava3.core.Observable",
         "io.reactivex.rxjava3.core.Maybe",
-        "kotlinx.coroutines.flow.Flow",
+        "io.smallrye.mutiny.Uni",
+        "reactor.core.publisher.Mono",
         "org.springframework.web.context.request.async.DeferredResult",
+        "org.springframework.web.context.request.async.WebAsyncTask",
         "org.springframework.boot.actuate.endpoint.web.WebEndpointResponse"
     );
+
+    public static final List<String> CONTAINER_TYPES = List.copyOf(new ArrayList<>(SINGLE_CONTAINER_TYPES) {{
+        addAll(ARRAY_CONTAINER_TYPES);
+    }});
 
     public static final List<String> FILE_TYPES = List.of(
         // this class from micronaut-http-server
         "io.micronaut.http.server.types.files.FileCustomizableResponseType",
         File.class.getName(),
         InputStream.class.getName(),
-        ByteBuffer.class.getName()
+        ByteBuffer.class.getName(),
+        "org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody",
+        "org.springframework.core.io.Resource"
     );
 
     public static final List<String> VOID_TYPES = List.of(
         void.class.getName(),
         Void.class.getName(),
-        "kotlin.Unit"
+        "kotlin.Unit",
+        "io.reactivex.Completable",
+        "io.reactivex.rxjava3.core.Completable"
     );
 
     private ElementUtils() {
@@ -141,9 +160,7 @@ public final class ElementUtils {
     }
 
     public static boolean isSingleResponseType(ClassElement returnType) {
-        return (returnType.isAssignable("io.reactivex.Single")
-            || returnType.isAssignable("io.reactivex.rxjava3.core.Single")
-            || returnType.isAssignable("org.reactivestreams.Publisher"))
+        return findAnyAssignable(returnType, SINGLE_CONTAINER_TYPES)
             && returnType.getFirstTypeArgument().isPresent()
             && isResponseType(returnType.getFirstTypeArgument().orElse(null));
     }
@@ -293,6 +310,26 @@ public final class ElementUtils {
      */
     public static boolean isContainerType(ClassElement type) {
         return findAnyAssignable(type, CONTAINER_TYPES);
+    }
+
+    /**
+     * Checking if the type is container array.
+     *
+     * @param type type element
+     * @return true if this type assignable with known container types
+     */
+    public static boolean isArrayContainerType(ClassElement type) {
+        return findAnyAssignable(type, ARRAY_CONTAINER_TYPES);
+    }
+
+    /**
+     * Checking if the type is container single.
+     *
+     * @param type type element
+     * @return true if this type assignable with known container types
+     */
+    public static boolean isSingleContainerType(ClassElement type) {
+        return findAnyAssignable(type, SINGLE_CONTAINER_TYPES);
     }
 
     /**
