@@ -109,7 +109,6 @@ import static io.micronaut.openapi.visitor.ContextProperty.MICRONAUT_INTERNAL_IS
 import static io.micronaut.openapi.visitor.ContextUtils.get;
 import static io.micronaut.openapi.visitor.ContextUtils.warn;
 import static io.micronaut.openapi.visitor.ConvertUtils.MAP_TYPE;
-import static io.micronaut.openapi.visitor.ElementUtils.getFirstNonContainerType;
 import static io.micronaut.openapi.visitor.ElementUtils.getJsonViewClass;
 import static io.micronaut.openapi.visitor.ElementUtils.hasNoBindingAnnotationOrType;
 import static io.micronaut.openapi.visitor.ElementUtils.isDeprecated;
@@ -133,6 +132,7 @@ import static io.micronaut.openapi.visitor.OpenApiModelProp.MICRONAUT_EXT_PARENT
 import static io.micronaut.openapi.visitor.OpenApiModelProp.PROP_ADD_ALWAYS;
 import static io.micronaut.openapi.visitor.OpenApiModelProp.PROP_ALLOW_EMPTY_VALUE;
 import static io.micronaut.openapi.visitor.OpenApiModelProp.PROP_ALLOW_RESERVED;
+import static io.micronaut.openapi.visitor.OpenApiModelProp.PROP_ARRAY;
 import static io.micronaut.openapi.visitor.OpenApiModelProp.PROP_CALLBACK_URL_EXPRESSION;
 import static io.micronaut.openapi.visitor.OpenApiModelProp.PROP_CONTENT;
 import static io.micronaut.openapi.visitor.OpenApiModelProp.PROP_DEFAULT;
@@ -165,6 +165,8 @@ import static io.micronaut.openapi.visitor.ParamUtils.paramStyle;
 import static io.micronaut.openapi.visitor.ParamUtils.paramStyleByFormat;
 import static io.micronaut.openapi.visitor.SchemaDefinitionUtils.bindSchemaAnnotationValue;
 import static io.micronaut.openapi.visitor.SchemaDefinitionUtils.bindSchemaForElement;
+import static io.micronaut.openapi.visitor.SchemaDefinitionUtils.processArraySchemaAnn;
+import static io.micronaut.openapi.visitor.SchemaDefinitionUtils.processSchemaAnn;
 import static io.micronaut.openapi.visitor.SchemaDefinitionUtils.processSchemaProperty;
 import static io.micronaut.openapi.visitor.SchemaDefinitionUtils.resolveSchema;
 import static io.micronaut.openapi.visitor.SchemaDefinitionUtils.toValue;
@@ -173,11 +175,13 @@ import static io.micronaut.openapi.visitor.SchemaUtils.COMPONENTS_CALLBACKS_PREF
 import static io.micronaut.openapi.visitor.SchemaUtils.TYPE_OBJECT;
 import static io.micronaut.openapi.visitor.SchemaUtils.TYPE_STRING;
 import static io.micronaut.openapi.visitor.SchemaUtils.appendSchema;
+import static io.micronaut.openapi.visitor.SchemaUtils.arraySchema;
 import static io.micronaut.openapi.visitor.SchemaUtils.createComposedSchema;
 import static io.micronaut.openapi.visitor.SchemaUtils.createSchema;
 import static io.micronaut.openapi.visitor.SchemaUtils.getOperationOnPathItem;
 import static io.micronaut.openapi.visitor.SchemaUtils.getReqMode;
 import static io.micronaut.openapi.visitor.SchemaUtils.getSchemaByRef;
+import static io.micronaut.openapi.visitor.SchemaUtils.isArraySchema;
 import static io.micronaut.openapi.visitor.SchemaUtils.setOperationOnPathItem;
 import static io.micronaut.openapi.visitor.SecurityUtils.processSecuritySchemes;
 import static io.micronaut.openapi.visitor.SecurityUtils.readSecurityRequirements;
@@ -695,14 +699,14 @@ public abstract class AbstractOpenApiEndpointVisitor extends AbstractOpenApiVisi
                                 // we can set application/octet-stream for file upload classes
                                 Encoding encoding = encodings.get(prop);
                                 if (encoding == null) {
-                                    if (isFileUpload(parameter.getType(), context)
-                                        || isMapOfMultipartFiles(parameter, context)
-                                        || isMapOfListOfMultipartFiles(parameter, context)
-                                        || isIterableOfMultipartFiles(parameter, context)) {
+                                    if (isFileUpload(parameter.getType())
+                                        || isMapOfMultipartFiles(parameter)
+                                        || isMapOfListOfMultipartFiles(parameter)
+                                        || isIterableOfMultipartFiles(parameter)) {
 
                                         encodings.put(prop, new Encoding()
                                             .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                                            .explode(isIterableOfMultipartFiles(parameter, context) || isMapOfListOfMultipartFiles(parameter, context)));
+                                            .explode(isIterableOfMultipartFiles(parameter) || isMapOfListOfMultipartFiles(parameter)));
                                     } else if (isMapOfStrings(parameter)) {
                                         encodings.put(parameter.getName(), new Encoding()
                                             .contentType(MediaType.TEXT_PLAIN));
@@ -1001,12 +1005,26 @@ public abstract class AbstractOpenApiEndpointVisitor extends AbstractOpenApiVisi
         if (propertySchema == null) {
             return;
         }
-        if (isMapOfMultipartFiles(parameter, context) || isMapOfListOfMultipartFiles(parameter, context)) {
+        if (isMapOfMultipartFiles(parameter) || isMapOfListOfMultipartFiles(parameter)) {
             propertySchema = (Schema) propertySchema.getAdditionalProperties();
         }
 
-        parameter.stringValue(io.swagger.v3.oas.annotations.Parameter.class, PROP_DESCRIPTION)
-            .ifPresent(propertySchema::setDescription);
+        var paramAnn = parameter.getAnnotation(io.swagger.v3.oas.annotations.Parameter.class);
+        if (paramAnn != null) {
+            var paramSchemaAnn = paramAnn.getAnnotation(PROP_SCHEMA, io.swagger.v3.oas.annotations.media.Schema.class).orElse(null);
+            if (paramSchemaAnn != null) {
+                processSchemaAnn(propertySchema, context, parameter, null, paramSchemaAnn);
+            }
+            var paramSchemaArrayAnn = paramAnn.getAnnotation(PROP_ARRAY, io.swagger.v3.oas.annotations.media.ArraySchema.class).orElse(null);
+            if (paramSchemaArrayAnn != null) {
+                if (!isArraySchema(propertySchema, openApi)) {
+                    propertySchema = arraySchema(propertySchema);
+                }
+                processArraySchemaAnn(propertySchema, context, parameter, null, paramSchemaArrayAnn);
+            }
+            paramAnn.stringValue(PROP_DESCRIPTION).ifPresent(propertySchema::setDescription);
+        }
+
         processSchemaProperty(context, parameter, parameter.getType(), null, schema, propertySchema);
         if (isNullable(parameter) && !isNotNullable(parameter)) {
             // Keep null if not
@@ -1088,7 +1106,7 @@ public abstract class AbstractOpenApiEndpointVisitor extends AbstractOpenApiVisi
             // public void endpoint2(@RequestParam Map<String, MultipartFile> files)
             // because, `@RequestParam` annotation mapped to `@QueryValue`, but it's required for Spring Boot
             // fix only for Map<String, MultipartFile>
-            if (isMapOfMultipartFiles(parameter, context) || isMapOfListOfMultipartFiles(parameter, context) || isIterableOfMultipartFiles(parameter, context)) {
+            if (isMapOfMultipartFiles(parameter) || isMapOfListOfMultipartFiles(parameter) || isIterableOfMultipartFiles(parameter)) {
                 extraBodyParameters.add(parameter);
                 isExtraBodyParam = true;
             } else if (isMapOfStrings(parameter)) {
@@ -1457,7 +1475,7 @@ public abstract class AbstractOpenApiEndpointVisitor extends AbstractOpenApiVisi
     }
 
     private void addResponseContent(MethodElement element, VisitorContext context, OpenAPI openApi, ApiResponse response, @Nullable ClassElement jsonViewClass) {
-        ClassElement returnType = returnType(element, context);
+        ClassElement returnType = returnType(element.getGenericReturnType());
         if (returnType != null && !returnType.getCanonicalName().equals(Void.class.getName())) {
             List<MediaType> producesMediaTypes = producesMediaTypes(element);
             Content content;
@@ -1470,17 +1488,18 @@ public abstract class AbstractOpenApiEndpointVisitor extends AbstractOpenApiVisi
         }
     }
 
-    private ClassElement returnType(MethodElement element, VisitorContext context) {
-        ClassElement returnType = getFirstNonContainerType(element.getGenericReturnType(), context);
-
-        if (ElementUtils.isVoid(returnType) || ElementUtils.isReactiveAndVoid(returnType, context)) {
+    private ClassElement returnType(ClassElement returnType) {
+        if (returnType == null) {
+            return null;
+        }
+        if (ElementUtils.isVoid(returnType) || ElementUtils.isReactiveAndVoid(returnType)) {
             returnType = null;
         } else if (isResponseType(returnType)) {
-            returnType = returnType.getFirstTypeArgument().orElse(returnType);
+            returnType = returnType(returnType.getFirstTypeArgument().orElse(returnType));
         } else if (isSingleResponseType(returnType)) {
             returnType = returnType.getFirstTypeArgument().orElse(null);
             if (returnType != null) {
-                returnType = returnType.getFirstTypeArgument().orElse(returnType);
+                returnType = returnType(returnType.getFirstTypeArgument().orElse(returnType));
             }
         }
 

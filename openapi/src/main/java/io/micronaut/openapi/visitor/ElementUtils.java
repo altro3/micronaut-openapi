@@ -59,6 +59,7 @@ import java.io.InputStream;
 import java.lang.annotation.Annotation;
 import java.nio.ByteBuffer;
 import java.security.Principal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -88,46 +89,58 @@ public final class ElementUtils {
 
     public static final AnnotationValue<?>[] EMPTY_ANNOTATION_VALUES_ARRAY = new AnnotationValue[0];
 
-    public static final List<String> CONTAINER_TYPES = List.of(
+    public static final List<String> ARRAY_CONTAINER_TYPES = List.of(
+        "io.reactivex.Flowable",
+        "io.reactivex.Observable",
+        "io.reactivex.rxjava3.core.Flowable",
+        "io.reactivex.rxjava3.core.Observable",
+        "reactor.core.publisher.Flux",
+        "kotlinx.coroutines.flow.Flow",
+        "org.reactivestreams.Publisher",
+        "io.smallrye.mutiny.Multi"
+    );
+
+    public static final List<String> SINGLE_CONTAINER_TYPES = List.of(
         AtomicReference.class.getName(),
         "com.google.common.base.Optional",
         Optional.class.getName(),
         Future.class.getName(),
         Callable.class.getName(),
         CompletionStage.class.getName(),
-        "org.reactivestreams.Publisher",
         "io.reactivex.Single",
-        "io.reactivex.Observable",
         "io.reactivex.Maybe",
         "io.reactivex.rxjava3.core.Single",
-        "io.reactivex.rxjava3.core.Observable",
         "io.reactivex.rxjava3.core.Maybe",
-        "kotlin.Result",
-        "kotlinx.coroutines.flow.Flow",
+        "io.smallrye.mutiny.Uni",
+        "reactor.core.publisher.Mono",
         "org.springframework.web.context.request.async.DeferredResult",
+        "org.springframework.web.context.request.async.WebAsyncTask",
         "org.springframework.boot.actuate.endpoint.web.WebEndpointResponse"
     );
+
+    public static final List<String> CONTAINER_TYPES = List.copyOf(new ArrayList<>(SINGLE_CONTAINER_TYPES) {{
+        addAll(ARRAY_CONTAINER_TYPES);
+    }});
 
     public static final List<String> FILE_TYPES = List.of(
         // this class from micronaut-http-server
         "io.micronaut.http.server.types.files.FileCustomizableResponseType",
         File.class.getName(),
         InputStream.class.getName(),
-        ByteBuffer.class.getName()
+        ByteBuffer.class.getName(),
+        "org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody",
+        "org.springframework.core.io.Resource"
     );
 
     public static final List<String> VOID_TYPES = List.of(
         void.class.getName(),
         Void.class.getName(),
-        "kotlin.Unit"
+        "kotlin.Unit",
+        "io.reactivex.Completable",
+        "io.reactivex.rxjava3.core.Completable"
     );
 
     private ElementUtils() {
-    }
-
-    public static boolean isJsonNode(ClassElement classEl) {
-        return classEl.isAssignable("com.fasterxml.jackson.databind.JsonNode")
-            || classEl.isAssignable("io.micronaut.json.tree.JsonNode");
     }
 
     public static boolean isJavaRecord(ClassElement classEl) {
@@ -147,9 +160,7 @@ public final class ElementUtils {
     }
 
     public static boolean isSingleResponseType(ClassElement returnType) {
-        return (returnType.isAssignable("io.reactivex.Single")
-            || returnType.isAssignable("io.reactivex.rxjava3.core.Single")
-            || returnType.isAssignable("org.reactivestreams.Publisher"))
+        return findAnyAssignable(returnType, SINGLE_CONTAINER_TYPES)
             && returnType.getFirstTypeArgument().isPresent()
             && isResponseType(returnType.getFirstTypeArgument().orElse(null));
     }
@@ -192,13 +203,17 @@ public final class ElementUtils {
      * Checking if the type is file upload type.
      *
      * @param type type element
-     * @param context visitor context
      * @return true if this type one of known file upload types
      */
-    public static boolean isFileUpload(ClassElement type, VisitorContext context) {
-        var nonContainerType = getFirstNonContainerType(type, context);
-        String typeName = nonContainerType.getName();
-        return nonContainerType.isAssignable(FileUpload.class)
+    public static boolean isFileUpload(ClassElement type) {
+        if (ElementUtils.isContainerType(type)) {
+            var typeArg = type.getFirstTypeArgument().orElse(null);
+            if (typeArg != null) {
+                type = typeArg;
+            }
+        }
+        String typeName = type.getName();
+        return type.isAssignable(FileUpload.class)
             || "io.micronaut.http.multipart.StreamingFileUpload".equals(typeName)
             || "io.micronaut.http.multipart.CompletedFileUpload".equals(typeName)
             || "io.micronaut.http.multipart.CompletedPart".equals(typeName)
@@ -298,17 +313,23 @@ public final class ElementUtils {
     }
 
     /**
-     * Found first a non-container type.
+     * Checking if the type is container array.
      *
-     * @param classEl class element
-     * @param context visitor context
-     * @return first non-container type
+     * @param type type element
+     * @return true if this type assignable with known container types
      */
-    public static ClassElement getFirstNonContainerType(ClassElement classEl, VisitorContext context) {
-        if (isContainerType(classEl)) {
-            return getFirstNonContainerType(classEl.getFirstTypeArgument().orElse(context.getClassElement(Object.class).orElse(classEl)), context);
-        }
-        return classEl;
+    public static boolean isArrayContainerType(ClassElement type) {
+        return findAnyAssignable(type, ARRAY_CONTAINER_TYPES);
+    }
+
+    /**
+     * Checking if the type is container single.
+     *
+     * @param type type element
+     * @return true if this type assignable with known container types
+     */
+    public static boolean isSingleContainerType(ClassElement type) {
+        return findAnyAssignable(type, SINGLE_CONTAINER_TYPES);
     }
 
     /**
@@ -325,14 +346,12 @@ public final class ElementUtils {
      * Checking if the type is void.
      *
      * @param type type element
-     * @param context visitor context
      * @return true if this type assignable with known container and type argument is void
      */
-    public static boolean isReactiveAndVoid(ClassElement type, VisitorContext context) {
-        var firstNonContainerType = getFirstNonContainerType(type, context);
+    public static boolean isReactiveAndVoid(ClassElement type) {
         return type.isAssignable("io.reactivex.Completable")
             || type.isAssignable("io.reactivex.rxjava3.core.Completable")
-            || (isContainerType(type) && isVoid(firstNonContainerType));
+            || (isContainerType(type) && type.getFirstTypeArgument().isPresent() && isVoid(type.getFirstTypeArgument().get()));
     }
 
     private static boolean findAnyAssignable(ClassElement type, List<String> typeNames) {
@@ -615,16 +634,16 @@ public final class ElementUtils {
         return jsonShape != JsonFormat.Shape.OBJECT && isEnum;
     }
 
-    public static boolean isIterableOfMultipartFiles(TypedElement el, VisitorContext context) {
+    public static boolean isIterableOfMultipartFiles(TypedElement el) {
         var type = el.getGenericType();
         if (type.isArray()) {
-            return isFileUpload(type, context);
+            return isFileUpload(type);
         }
         if (type.isAssignable("org.springframework.util.MultiValueMap")) {
             var typeArgs = el.getGenericType().getTypeArguments();
             if (typeArgs.size() == 2) {
                 var typeArgType = typeArgs.get(TYPE_ARG_MAP_VALUE);
-                return isFileUpload(typeArgType, context);
+                return isFileUpload(typeArgType);
             }
             return false;
         }
@@ -645,10 +664,10 @@ public final class ElementUtils {
         if (typeArg == null) {
             return false;
         }
-        return isFileUpload(typeArg, context);
+        return isFileUpload(typeArg);
     }
 
-    public static boolean isMapOfListOfMultipartFiles(TypedElement el, VisitorContext context) {
+    public static boolean isMapOfListOfMultipartFiles(TypedElement el) {
         ClassElement typeArgType = null;
         var type = el.getGenericType();
         if (type.isAssignable("org.springframework.util.MultiValueMap")) {
@@ -672,10 +691,10 @@ public final class ElementUtils {
         if (typeArgType == null) {
             return false;
         }
-        return isFileUpload(typeArgType, context);
+        return isFileUpload(typeArgType);
     }
 
-    public static boolean isMapOfMultipartFiles(TypedElement el, VisitorContext context) {
+    public static boolean isMapOfMultipartFiles(TypedElement el) {
         if (!el.getType().isAssignable(Map.class)) {
             return false;
         }
@@ -684,7 +703,7 @@ public final class ElementUtils {
             return false;
         }
         var valueType = typeArgs.get(TYPE_ARG_MAP_VALUE);
-        return isFileUpload(valueType, context);
+        return isFileUpload(valueType);
     }
 
     public static boolean isMapOfStrings(TypedElement el) {
