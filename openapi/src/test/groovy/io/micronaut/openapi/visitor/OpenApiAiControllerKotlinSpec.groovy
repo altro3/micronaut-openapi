@@ -1044,7 +1044,6 @@ public class MyBean {}
         openApi.components.schemas.containsKey('PasswordAuth')
     }
 
-    @Ignore
     void "test controller interpretation - inline parameter validation"() {
         given:
         buildBeanDefinition('test.ValidationController', '''
@@ -1192,7 +1191,7 @@ public class MyBean {}
         headerParam.schema.type == 'object'
     }
 
-    @Ignore
+//    @Ignore
     void "test controller interpretation - content types and headers"() {
         given:
         buildBeanDefinition('test.ContentController', '''
