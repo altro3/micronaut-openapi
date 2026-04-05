@@ -1114,6 +1114,77 @@ public class MyBean {}
         emailParam.schema.format == 'email'
     }
 
+    void "test controller interpretation - content types and headers"() {
+        given:
+        buildBeanDefinition('test.ContentController', '''
+package test
+
+import io.micronaut.http.HttpResponse
+import io.micronaut.http.MediaType
+import io.micronaut.http.annotation.*
+import io.micronaut.core.annotation.Introspected
+import io.swagger.v3.oas.annotations.media.Content
+import io.swagger.v3.oas.annotations.media.Schema
+import io.swagger.v3.oas.annotations.responses.ApiResponse
+import java.io.InputStream
+
+@Introspected
+data class Info(val version: String)
+
+@Header(name = "X-Service-Id", value = "service-v1")
+@Controller("/content")
+class ContentController {
+
+    // 1. Multiple media types for one response
+    @Get(value = "/report", produces = [MediaType.APPLICATION_JSON, MediaType.TEXT_PLAIN])
+    fun getReport(): HttpResponse<Info> = HttpResponse.ok(Info("1.0"))
+
+    // 2. Binary stream with manual Media Type
+    @Get(value = "/raw", produces = [MediaType.APPLICATION_OCTET_STREAM])
+    fun getRaw(): InputStream = TODO()
+
+    // 3. Method with specific header and override check
+    @Post("/send")
+    fun sendData(
+        @Header("X-Trace-Id") traceId: String,
+        @Body data: String
+    ): HttpResponse<Void> = HttpResponse.noContent()
+}
+
+@jakarta.inject.Singleton
+public class MyBean {}
+''')
+
+        when:
+        var openApi = Utils.testReference
+
+        then:
+        // --- 1. Verify Multiple Media Types ---
+        var reportOp = openApi.paths['/content/report'].get
+        var content = reportOp.responses['200'].content
+        content.containsKey('application/json')
+        content.containsKey('text/plain')
+        content['application/json'].schema.$ref == '#/components/schemas/Info'
+
+        // --- 2. Verify Binary Stream Interpretation ---
+        var rawOp = openApi.paths['/content/raw'].get
+        var rawSchema = rawOp.responses['200'].content['application/octet-stream'].schema
+        rawSchema.type == 'string'
+        rawSchema.format == 'binary'
+
+        // --- 3. Verify Header Inheritance & Params ---
+        var sendOp = openApi.paths['/content/send'].post
+        // Should have X-Trace-Id from parameter
+        sendOp.parameters.any { it.name == 'X-Trace-Id' && it.in == 'header' && it.required }
+        // Should have X-Service-Id inherited from @Header on class
+        sendOp.parameters.any { it.name == 'X-Service-Id' && it.in == 'header' }
+
+        // --- 4. Verify No Content Response ---
+        var sendResponse = sendOp.responses['204'] ?: sendOp.responses['200']
+        // For Void/noContent it should ideally be 204 or empty schema
+        sendResponse != null
+    }
+
     @Ignore
     void "test controller interpretation - routes and complex parameters"() {
         given:
@@ -1189,78 +1260,6 @@ public class MyBean {}
         headerParam.name == 'headers'
         headerParam.explode == true
         headerParam.schema.type == 'object'
-    }
-
-//    @Ignore
-    void "test controller interpretation - content types and headers"() {
-        given:
-        buildBeanDefinition('test.ContentController', '''
-package test
-
-import io.micronaut.http.HttpResponse
-import io.micronaut.http.MediaType
-import io.micronaut.http.annotation.*
-import io.micronaut.core.annotation.Introspected
-import io.swagger.v3.oas.annotations.media.Content
-import io.swagger.v3.oas.annotations.media.Schema
-import io.swagger.v3.oas.annotations.responses.ApiResponse
-import java.io.InputStream
-
-@Introspected
-data class Info(val version: String)
-
-@Header(name = "X-Service-Id", value = "service-v1")
-@Controller("/content")
-class ContentController {
-
-    // 1. Multiple media types for one response
-    @Get(value = "/report", produces = [MediaType.APPLICATION_JSON, MediaType.TEXT_PLAIN])
-    fun getReport(): HttpResponse<Info> = HttpResponse.ok(Info("1.0"))
-
-    // 2. Binary stream with manual Media Type
-    @Get(value = "/raw", produces = [MediaType.APPLICATION_OCTET_STREAM])
-    fun getRaw(): InputStream = TODO()
-
-    // 3. Method with specific header and override check
-    @Post("/send")
-    fun sendData(
-        @Header("X-Trace-Id") traceId: String,
-        @Body data: String
-    ): HttpResponse<Void> = HttpResponse.noContent()
-}
-
-@jakarta.inject.Singleton
-public class MyBean {}
-''')
-
-        when:
-        var openApi = Utils.testReference
-
-        then:
-        // --- 1. Verify Multiple Media Types ---
-        var reportOp = openApi.paths['/content/report'].get
-        var content = reportOp.responses['200'].content
-        content.containsKey('application/json')
-        content.containsKey('text/plain')
-        content['application/json'].schema.$ref == '#/components/schemas/Info'
-
-        // --- 2. Verify Binary Stream Interpretation ---
-        var rawOp = openApi.paths['/content/raw'].get
-        var rawSchema = rawOp.responses['200'].content['application/octet-stream'].schema
-        rawSchema.type == 'string'
-        rawSchema.format == 'binary'
-
-        // --- 3. Verify Header Inheritance & Params ---
-        var sendOp = openApi.paths['/content/send'].post
-        // Should have X-Trace-Id from parameter
-        sendOp.parameters.any { it.name == 'X-Trace-Id' && it.in == 'header' && it.required }
-        // Should have X-Service-Id inherited from @Header on class
-        sendOp.parameters.any { it.name == 'X-Service-Id' && it.in == 'header' }
-
-        // --- 4. Verify No Content Response ---
-        var sendResponse = sendOp.responses['204'] ?: sendOp.responses['200']
-        // For Void/noContent it should ideally be 204 or empty schema
-        sendResponse != null
     }
 
     @Ignore
