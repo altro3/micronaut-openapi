@@ -2088,7 +2088,7 @@ public final class SchemaDefinitionUtils {
         }
     }
 
-    private static void processArraySchemaAnn(Schema schemaToBind, VisitorContext context, Element element,
+    public static void processArraySchemaAnn(Schema schemaToBind, VisitorContext context, Element element,
                                               @Nullable ClassElement classEl,
                                               @Nullable AnnotationValue<io.swagger.v3.oas.annotations.media.ArraySchema> arraySchemaAnnValue) {
 
@@ -2169,13 +2169,13 @@ public final class SchemaDefinitionUtils {
         }
     }
 
-    private static void processSchemaAnn(Schema schemaToBind, VisitorContext context, Element element,
+    public static void processSchemaAnn(Schema schemaToBind, VisitorContext context, Element element,
                                          @Nullable ClassElement classEl,
                                          @Nullable AnnotationValue<io.swagger.v3.oas.annotations.media.Schema> schemaAnn) {
         processSchemaAnn(schemaToBind, context, element, false, classEl, schemaAnn);
     }
 
-    private static void processSchemaAnn(Schema schemaToBind, VisitorContext context, Element element,
+    public static void processSchemaAnn(Schema schemaToBind, VisitorContext context, Element element,
                                          boolean isArraySchema,
                                          @Nullable ClassElement classEl,
                                          @Nullable AnnotationValue<io.swagger.v3.oas.annotations.media.Schema> schemaAnn) {
