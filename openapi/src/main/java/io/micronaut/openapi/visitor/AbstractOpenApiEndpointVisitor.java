@@ -1388,6 +1388,14 @@ public abstract class AbstractOpenApiEndpointVisitor extends AbstractOpenApiVisi
         var bodyAnn = parameter.getAnnotation(Body.class);
         String wrappedSchemaPropertyName = bodyAnn != null ? bodyAnn.getValue(String.class).orElse(null) : null;
 
+        // Extract Swagger annotations from the parameter to ensure they are not ignored
+        var schemaAnn = parameter.getAnnotation(io.swagger.v3.oas.annotations.media.Schema.class);
+        var arraySchemaAnn = parameter.getAnnotation(io.swagger.v3.oas.annotations.media.ArraySchema.class);
+        // If @Schema is not present on the parameter, try to extract it from @ArraySchema.schema()
+        if (schemaAnn == null && arraySchemaAnn != null) {
+            schemaAnn = arraySchemaAnn.getAnnotation(PROP_SCHEMA, io.swagger.v3.oas.annotations.media.Schema.class).orElse(null);
+        }
+
         for (var mediaType : consumesMediaTypes) {
             var mt = content.get(mediaType.toString());
             if (mt == null) {
@@ -1408,7 +1416,13 @@ public abstract class AbstractOpenApiEndpointVisitor extends AbstractOpenApiVisi
                 processBodyParameter(context, openApi, javadocDescription, mediaType, wrapperSchema, parameter);
             } else {
                 var needSetSchema = true;
-                var paramSchema = resolveSchema(openApi, parameter, parameterType, context, Collections.singletonList(mediaType), jsonViewClass, null, null, null);
+                var paramSchema = resolveSchema(openApi, parameter, parameterType, context, Collections.singletonList(mediaType), jsonViewClass, null, null, schemaAnn);
+                processSchemaAnn(paramSchema, context, parameter, parameterType, schemaAnn);
+                if (arraySchemaAnn != null) {
+                    paramSchema = arraySchema(paramSchema);
+                    // processArraySchemaAnn populates metadata (minItems, maxItems, etc.) into the object
+                    processArraySchemaAnn(paramSchema, context, parameter, parameterType, arraySchemaAnn);
+                }
                 if (mt.getSchema() != null) {
                     if (mt.getSchema().get$ref() != null
                         || CollectionUtils.isNotEmpty(mt.getSchema().getAnyOf())
