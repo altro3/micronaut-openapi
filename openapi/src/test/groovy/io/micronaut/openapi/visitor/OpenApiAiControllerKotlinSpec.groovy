@@ -2,6 +2,7 @@ package io.micronaut.openapi.visitor
 
 import io.micronaut.annotation.processing.test.AbstractKotlinCompilerSpec
 import spock.lang.Ignore
+import spock.util.environment.RestoreSystemProperties
 
 class OpenApiAiControllerKotlinSpec extends AbstractKotlinCompilerSpec {
 
@@ -1106,11 +1107,11 @@ public class MyBean {}
         headerParam.schema.type == 'object'
     }
 
-    @Ignore
-    void "test controller interpretation - pojo query parameters and validation"() {
+    @RestoreSystemProperties
+    void "test controller interpretation - pojo query parameters and validation fixed"() {
         given:
-        // Включаем snake_case для параметров, чтобы усложнить задачу
-        System.setProperty("micronaut.openapi.property.naming.strategy", "SNAKE_CASE")
+        // Set the naming strategy via ConfigUtils compatible property
+        System.setProperty(OpenApiConfigProperty.MICRONAUT_OPENAPI_PROPERTY_NAMING_STRATEGY, "SNAKE_CASE")
 
         buildBeanDefinition('test.SearchController', '''
 package test
@@ -1121,20 +1122,38 @@ import jakarta.validation.constraints.*
 
 @Introspected
 data class SearchFilter(
-    @field:NotBlank val query: String,
+    @field:NotBlank 
+    val query: String,
     
-    @field:Min(1) @field:Max(100) 
-    val pageSize: Int = 20,
+    /**
+     * Explicitly setting defaultValue in the annotation 
+     * so the processor can see it during compilation.
+     */
+    @field:QueryValue(defaultValue = "20")
+    @field:Min(1)
+    @field:Max(100) 
+    val pageSize: Int,
     
-    val includeDeleted: Boolean = false
+    /**
+     * Boolean defaultValue must be provided as a String "false".
+     * The processor must convert it to a Boolean instance.
+     */
+    @field:QueryValue(defaultValue = "false")
+    val includeDeleted: Boolean,
 )
 
 @Controller("/search")
 class SearchController {
 
-    // Micronaut allows passing a POJO as a collection of query parameters
+    /**
+     * POJO Aggregator: Micronaut will flatten this because 
+     * there's no explicit name in @QueryValue.
+     */
     @Get("/list")
-    fun list(@QueryValue filter: SearchFilter): String = "searching..."
+    fun list(
+        @QueryValue 
+        filter: SearchFilter,
+    ): String = "searching..."
 }
 
 @jakarta.inject.Singleton
@@ -1143,34 +1162,34 @@ public class MyBean {}
 
         when:
         var openApi = Utils.testReference
-        System.clearProperty("micronaut.openapi.property.naming.strategy")
 
         then:
-        // --- Verify SearchController Interpretation ---
         var operation = openApi.paths['/search/list'].get
         var parameters = operation.parameters
 
-        // 1. Check if POJO was flattened into 3 individual query parameters
+        // 1. Verify Flattening (Aggregation) - should have 3 separate query params
         parameters.size() == 3
         parameters.every { it.in == 'query' }
 
-        // 2. Check naming (should be snake_case if strategy works for QueryValue)
+        // 2. Verify Naming Strategy (SNAKE_CASE applied to properties)
         var qParam = parameters.find { it.name == 'query' }
-        var sizeParam = parameters.find { it.name == 'page_size' } // Was pageSize
-        var deletedParam = parameters.find { it.name == 'include_deleted' } // Was includeDeleted
+        var sizeParam = parameters.find { it.name == 'page_size' }
+        var deletedParam = parameters.find { it.name == 'include_deleted' }
 
         qParam != null
         sizeParam != null
         deletedParam != null
 
-        // 3. Check Validation & Constraints mapping
+        // 3. Verify Constraints (Mapping from JSR-303 annotations)
         qParam.required == true
-
         sizeParam.schema.minimum == 1
         sizeParam.schema.maximum == 100
-        sizeParam.schema.default.toString() == "20"
 
-        // 4. Check Boolean default
+        // 4. Verify Typed Default Values (The result of convertDefaultValue method)
+        sizeParam.schema.default instanceof Integer
+        sizeParam.schema.default == 20
+
+        deletedParam.schema.default instanceof Boolean
         deletedParam.schema.default == false
     }
 

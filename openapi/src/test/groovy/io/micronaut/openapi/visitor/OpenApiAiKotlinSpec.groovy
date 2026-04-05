@@ -689,7 +689,7 @@ public class MyBean {}
     void "test naming strategy snake_case"() {
         given:
         // Включаем snake_case через системное свойство для теста
-        System.setProperty("micronaut.openapi.property.naming.strategy", "SNAKE_CASE")
+        System.setProperty(OpenApiConfigProperty.MICRONAUT_OPENAPI_PROPERTY_NAMING_STRATEGY, "SNAKE_CASE")
 
         buildBeanDefinition('test.NamingController', '''
 package test
