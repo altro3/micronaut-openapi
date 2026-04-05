@@ -1389,7 +1389,7 @@ public class MyBean {}
         hexRequest.pattern == "^[0-9a-fA-F]+\$"
     }
 
-    @Ignore
+//    @Ignore
     void "test controller interpretation - path regex and templates fixed"() {
         given:
         buildBeanDefinition('test.PathController', '''
