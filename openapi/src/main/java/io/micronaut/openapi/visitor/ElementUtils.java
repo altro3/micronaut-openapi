@@ -24,6 +24,7 @@ import io.micronaut.core.annotation.AnnotationMetadata;
 import io.micronaut.core.annotation.AnnotationValue;
 import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.annotation.Internal;
+import io.micronaut.core.annotation.Introspected;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.reflect.ClassUtils;
 import io.micronaut.core.util.CollectionUtils;
@@ -699,5 +700,34 @@ public final class ElementUtils {
             isExcluded = true;
         }
         return isExcluded;
+    }
+
+    /**
+     * Checks if the parameter is a @QueryValue without an explicit name,
+     * meaning it should be expanded into multiple query parameters.
+     *
+     * @param parameter the parameter to check
+     * @return true if the parameter is an implicit query aggregator, false otherwise
+     */
+    public static boolean isImplicitQueryAggregator(TypedElement parameter) {
+        if (!parameter.isAnnotationPresent(QueryValue.class)) {
+            return false;
+        }
+
+        // If @QueryValue("name") is present, it's a single parameter, not an aggregator
+        var explicitName = parameter.stringValue(QueryValue.class).orElse(null);
+        if (StringUtils.isNotEmpty(explicitName)) {
+            return false;
+        }
+
+        var type = parameter.getType();
+        // Aggregators are complex types (POJOs), not simple types or collections
+        return !type.isPrimitive()
+            && !type.isAssignable(String.class)
+            && !type.isAssignable(Number.class)
+            && !type.isEnum()
+            && !type.isAssignable(Iterable.class)
+            && !type.isAssignable(Map.class)
+            && type.hasAnnotation(Introspected.class);
     }
 }
