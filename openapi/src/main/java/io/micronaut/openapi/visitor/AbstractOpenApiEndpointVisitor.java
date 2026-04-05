@@ -1612,18 +1612,24 @@ public abstract class AbstractOpenApiEndpointVisitor extends AbstractOpenApiVisi
 
         var variablesMetadata = new LinkedHashMap<String, VarMetadata>(pv.size());
         for (var variable : pv) {
-            var name = variable.getName();
+            var rawName = variable.getName();
             String extractedPattern = null;
 
+            // Micronaut bug/feature: name might contain RFC 6570 operators like '*' or '+'
+            // We must clean it for OpenAPI compliance
+            var cleanName = rawName;
+            if (cleanName.startsWith("*") || cleanName.startsWith("+") || cleanName.startsWith("/")) {
+                cleanName = cleanName.substring(1);
+            }
             // 1. Extract pattern
-            var p = Pattern.compile("\\{" + Pattern.quote(name) + ":(.+?)}");
+            var p = Pattern.compile("\\{" + Pattern.quote(rawName) + ":(.+?)}");
             var m = p.matcher(rawTemplate);
             if (m.find()) {
                 extractedPattern = m.group(1);
             }
 
             // 2. Map properties from UriMatchVariable
-            variablesMetadata.put(name, new VarMetadata(
+            variablesMetadata.put(cleanName, new VarMetadata(
                 variable,
                 extractedPattern
             ));
