@@ -1185,6 +1185,64 @@ public class MyBean {}
         sendResponse != null
     }
 
+    void "test controller interpretation - path regex and templates fixed"() {
+        given:
+        buildBeanDefinition('test.PathController', '''
+package test
+
+import io.micronaut.http.annotation.*
+
+@Controller("/path")
+class PathController {
+
+    // 1. Correct syntax: {name:regex}
+    // We use a simpler regex to avoid double curly brace issues in the compiler string
+    @Get("/user/{id:[a-f0-9]+}")
+    fun getUser(@PathVariable id: String): String = id
+
+    // 2. Multiple variables in a single path segment
+    @Get("/archive/{year}-{month}")
+    fun getArchive(
+        @PathVariable year: Int,
+        @PathVariable month: String
+    ): String = "$year/$month"
+
+    // 3. Testing greedy path variable interpretation
+    @Get("/files/{*path}")
+    fun getFile(@PathVariable path: String): String = path
+}
+
+@jakarta.inject.Singleton
+public class MyBean {}
+''')
+
+        when:
+        var openApi = Utils.testReference
+
+        then:
+        // --- 1. Verify Path Regex Extraction ---
+        // OpenAPI path must be cleaned to /path/user/{id}
+        var userOp = openApi.paths['/path/user/{id}'].get
+        userOp != null
+        var idParam = userOp.parameters.find { it.name == 'id' }
+
+        idParam.in == 'path'
+        // Regex should be moved to the 'pattern' field of the schema
+        idParam.schema.pattern == "[a-f0-9]+"
+
+        // --- 2. Verify Multi-Variable Segment ---
+        // Path segment with hyphens: /path/archive/{year}-{month}
+        var archiveOp = openApi.paths['/path/archive/{year}-{month}'].get
+        archiveOp.parameters.any { it.name == 'year' && it.in == 'path' }
+        archiveOp.parameters.any { it.name == 'month' && it.in == 'path' }
+
+        // --- 3. Verify Greedy Path ({*path}) ---
+        // Micronaut's {*path} should be interpreted as a regular {path} in OpenAPI
+        var fileOp = openApi.paths['/path/files/{path}'].get
+        fileOp != null
+        fileOp.parameters.find { it.name == 'path' }.required == true
+    }
+
     @Ignore
     void "test controller interpretation - routes and complex parameters"() {
         given:
@@ -1387,65 +1445,6 @@ public class MyBean {}
         var hexRequest = hexOp.requestBody.content['text/plain'].schema
         hexRequest.description == "Hexadecimal string"
         hexRequest.pattern == "^[0-9a-fA-F]+\$"
-    }
-
-//    @Ignore
-    void "test controller interpretation - path regex and templates fixed"() {
-        given:
-        buildBeanDefinition('test.PathController', '''
-package test
-
-import io.micronaut.http.annotation.*
-
-@Controller("/path")
-class PathController {
-
-    // 1. Correct syntax: {name:regex}
-    // We use a simpler regex to avoid double curly brace issues in the compiler string
-    @Get("/user/{id:[a-f0-9]+}")
-    fun getUser(@PathVariable id: String): String = id
-
-    // 2. Multiple variables in a single path segment
-    @Get("/archive/{year}-{month}")
-    fun getArchive(
-        @PathVariable year: Int,
-        @PathVariable month: String
-    ): String = "$year/$month"
-
-    // 3. Testing greedy path variable interpretation
-    @Get("/files/{*path}")
-    fun getFile(@PathVariable path: String): String = path
-}
-
-@jakarta.inject.Singleton
-public class MyBean {}
-''')
-
-        when:
-        var openApi = Utils.testReference
-
-        then:
-        // --- 1. Verify Path Regex Extraction ---
-        // OpenAPI path must be cleaned to /path/user/{id}
-        var userOp = openApi.paths['/path/user/{id}'].get
-        userOp != null
-        var idParam = userOp.parameters.find { it.name == 'id' }
-
-        idParam.in == 'path'
-        // Regex should be moved to the 'pattern' field of the schema
-        idParam.schema.pattern == "[a-f0-9]+"
-
-        // --- 2. Verify Multi-Variable Segment ---
-        // Path segment with hyphens: /path/archive/{year}-{month}
-        var archiveOp = openApi.paths['/path/archive/{year}-{month}'].get
-        archiveOp.parameters.any { it.name == 'year' && it.in == 'path' }
-        archiveOp.parameters.any { it.name == 'month' && it.in == 'path' }
-
-        // --- 3. Verify Greedy Path ({*path}) ---
-        // Micronaut's {*path} should be interpreted as a regular {path} in OpenAPI
-        var fileOp = openApi.paths['/path/files/{path}'].get
-        fileOp != null
-        fileOp.parameters.find { it.name == 'path' }.required == true
     }
 
     @Ignore
