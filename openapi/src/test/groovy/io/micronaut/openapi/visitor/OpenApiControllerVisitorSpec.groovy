@@ -3550,4 +3550,85 @@ class MyBean {}
         openApi.components.schemas.containsKey('SmsAuth')
         openApi.components.schemas.containsKey('PasswordAuth')
     }
+
+    void "test controller interpretation - inline parameter validation"() {
+        given:
+        buildBeanDefinition('test.ValidationController', '''
+package test;
+
+import io.micronaut.http.annotation.*;
+import jakarta.validation.constraints.*;
+import jakarta.inject.Singleton;
+
+@Controller("/validation")
+class ValidationController {
+
+    /**
+     * Testing numeric constraints on query parameters.
+     */
+    @Get("/limit")
+    public String checkLimit(
+        @QueryValue @Min(1) @Max(100) int limit,
+        @QueryValue(defaultValue = "10") int offset
+    ) {
+        return "ok";
+    }
+
+    /**
+     * Testing string constraints and regex extraction from path variable.
+     */
+    @Get("/user/{username:[a-z]+}")
+    public String getUser(
+        @PathVariable @Size(min = 3, max = 20) String username
+    ) {
+        return username;
+    }
+
+    /**
+     * Testing format mapping for email and required status for NotBlank.
+     */
+    @Post("/subscribe")
+    public String subscribe(
+        @QueryValue @Email @NotBlank String email
+    ) {
+        return email;
+    }
+}
+''')
+        when:
+        var openApi = Utils.testReference
+
+        then:
+        // --- 1. Verify Numeric Constraints ---
+        var limitOp = openApi.paths."/validation/limit".get
+        var limitParam = limitOp.parameters.find { it.name == 'limit' }
+
+        limitParam.schema.minimum == 1
+        limitParam.schema.maximum == 100
+        limitParam.required == true
+
+        var offsetParam = limitOp.parameters.find { it.name == 'offset' }
+        // The processor should convert "10" string to Integer
+        offsetParam.schema.default instanceof Integer
+        offsetParam.schema.default == 10
+        offsetParam.required != true
+
+        // --- 2. Verify String Constraints & Path Regex ---
+        var userOp = openApi.paths."/validation/user/{username}".get
+        var userParam = userOp.parameters.find { it.name == 'username' }
+
+        userParam.in == 'path'
+        userParam.required == true
+        userParam.schema.minLength == 3
+        userParam.schema.maxLength == 20
+        // The regex from path template {username:[a-z]+} must be extracted to 'pattern'
+        userParam.schema.pattern == "[a-z]+"
+
+        // --- 3. Verify Email Format ---
+        var subOp = openApi.paths."/validation/subscribe".post
+        var emailParam = subOp.parameters.find { it.name == 'email' }
+
+        emailParam.required == true
+        emailParam.schema.format == 'email'
+    }
 }
