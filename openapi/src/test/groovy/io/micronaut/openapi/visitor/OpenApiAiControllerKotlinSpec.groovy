@@ -885,6 +885,92 @@ public class MyBean {}
         publicOp.security == null || publicOp.security.isEmpty()
     }
 
+    @RestoreSystemProperties
+    void "test controller interpretation - pojo query parameters and validation fixed"() {
+        given:
+        // Set the naming strategy via ConfigUtils compatible property
+        System.setProperty(OpenApiConfigProperty.MICRONAUT_OPENAPI_PROPERTY_NAMING_STRATEGY, "SNAKE_CASE")
+
+        buildBeanDefinition('test.SearchController', '''
+package test
+
+import io.micronaut.http.annotation.*
+import io.micronaut.core.annotation.Introspected
+import jakarta.validation.constraints.*
+
+@Introspected
+data class SearchFilter(
+    @field:NotBlank 
+    val query: String,
+    
+    /**
+     * Explicitly setting defaultValue in the annotation 
+     * so the processor can see it during compilation.
+     */
+    @field:QueryValue(defaultValue = "20")
+    @field:Min(1)
+    @field:Max(100) 
+    val pageSize: Int,
+    
+    /**
+     * Boolean defaultValue must be provided as a String "false".
+     * The processor must convert it to a Boolean instance.
+     */
+    @field:QueryValue(defaultValue = "false")
+    val includeDeleted: Boolean,
+)
+
+@Controller("/search")
+class SearchController {
+
+    /**
+     * POJO Aggregator: Micronaut will flatten this because 
+     * there's no explicit name in @QueryValue.
+     */
+    @Get("/list")
+    fun list(
+        @QueryValue 
+        filter: SearchFilter,
+    ): String = "searching..."
+}
+
+@jakarta.inject.Singleton
+public class MyBean {}
+''')
+
+        when:
+        var openApi = Utils.testReference
+
+        then:
+        var operation = openApi.paths['/search/list'].get
+        var parameters = operation.parameters
+
+        // 1. Verify Flattening (Aggregation) - should have 3 separate query params
+        parameters.size() == 3
+        parameters.every { it.in == 'query' }
+
+        // 2. Verify Naming Strategy (SNAKE_CASE applied to properties)
+        var qParam = parameters.find { it.name == 'query' }
+        var sizeParam = parameters.find { it.name == 'page_size' }
+        var deletedParam = parameters.find { it.name == 'include_deleted' }
+
+        qParam != null
+        sizeParam != null
+        deletedParam != null
+
+        // 3. Verify Constraints (Mapping from JSR-303 annotations)
+        qParam.required == true
+        sizeParam.schema.minimum == 1
+        sizeParam.schema.maximum == 100
+
+        // 4. Verify Typed Default Values (The result of convertDefaultValue method)
+        sizeParam.schema.default instanceof Integer
+        sizeParam.schema.default == 20
+
+        deletedParam.schema.default instanceof Boolean
+        deletedParam.schema.default == false
+    }
+
     @Ignore
     void "test controller interpretation - request composition and anyOf"() {
         given:
@@ -1105,92 +1191,6 @@ public class MyBean {}
         headerParam.name == 'headers'
         headerParam.explode == true
         headerParam.schema.type == 'object'
-    }
-
-    @RestoreSystemProperties
-    void "test controller interpretation - pojo query parameters and validation fixed"() {
-        given:
-        // Set the naming strategy via ConfigUtils compatible property
-        System.setProperty(OpenApiConfigProperty.MICRONAUT_OPENAPI_PROPERTY_NAMING_STRATEGY, "SNAKE_CASE")
-
-        buildBeanDefinition('test.SearchController', '''
-package test
-
-import io.micronaut.http.annotation.*
-import io.micronaut.core.annotation.Introspected
-import jakarta.validation.constraints.*
-
-@Introspected
-data class SearchFilter(
-    @field:NotBlank 
-    val query: String,
-    
-    /**
-     * Explicitly setting defaultValue in the annotation 
-     * so the processor can see it during compilation.
-     */
-    @field:QueryValue(defaultValue = "20")
-    @field:Min(1)
-    @field:Max(100) 
-    val pageSize: Int,
-    
-    /**
-     * Boolean defaultValue must be provided as a String "false".
-     * The processor must convert it to a Boolean instance.
-     */
-    @field:QueryValue(defaultValue = "false")
-    val includeDeleted: Boolean,
-)
-
-@Controller("/search")
-class SearchController {
-
-    /**
-     * POJO Aggregator: Micronaut will flatten this because 
-     * there's no explicit name in @QueryValue.
-     */
-    @Get("/list")
-    fun list(
-        @QueryValue 
-        filter: SearchFilter,
-    ): String = "searching..."
-}
-
-@jakarta.inject.Singleton
-public class MyBean {}
-''')
-
-        when:
-        var openApi = Utils.testReference
-
-        then:
-        var operation = openApi.paths['/search/list'].get
-        var parameters = operation.parameters
-
-        // 1. Verify Flattening (Aggregation) - should have 3 separate query params
-        parameters.size() == 3
-        parameters.every { it.in == 'query' }
-
-        // 2. Verify Naming Strategy (SNAKE_CASE applied to properties)
-        var qParam = parameters.find { it.name == 'query' }
-        var sizeParam = parameters.find { it.name == 'page_size' }
-        var deletedParam = parameters.find { it.name == 'include_deleted' }
-
-        qParam != null
-        sizeParam != null
-        deletedParam != null
-
-        // 3. Verify Constraints (Mapping from JSR-303 annotations)
-        qParam.required == true
-        sizeParam.schema.minimum == 1
-        sizeParam.schema.maximum == 100
-
-        // 4. Verify Typed Default Values (The result of convertDefaultValue method)
-        sizeParam.schema.default instanceof Integer
-        sizeParam.schema.default == 20
-
-        deletedParam.schema.default instanceof Boolean
-        deletedParam.schema.default == false
     }
 
     @Ignore
