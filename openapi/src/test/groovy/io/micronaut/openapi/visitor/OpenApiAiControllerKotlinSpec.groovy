@@ -971,7 +971,6 @@ public class MyBean {}
         deletedParam.schema.default == false
     }
 
-    @Ignore
     void "test controller interpretation - request composition and anyOf"() {
         given:
         buildBeanDefinition('test.ComposeController', '''
