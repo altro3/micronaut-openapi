@@ -1,6 +1,7 @@
 package io.micronaut.openapi.visitor
 
 import io.micronaut.annotation.processing.test.AbstractKotlinCompilerSpec
+import io.swagger.v3.oas.models.parameters.Parameter
 import spock.lang.Ignore
 import spock.util.environment.RestoreSystemProperties
 
@@ -1368,6 +1369,270 @@ public class MyBean {}
         hexRequest.pattern == "^[0-9a-fA-F]+\$"
     }
 
+    void "test controller interpretation - generics and paged response"() {
+        given:
+        buildBeanDefinition('test.PageController', '''
+package test
+
+import io.micronaut.http.annotation.*
+import io.micronaut.core.annotation.Introspected
+
+@Introspected
+class Page<T>(val content: List<T>, val total: Long)
+
+@Introspected
+class User(val username: String)
+
+@Controller("/users")
+class PageController {
+
+    @Get("/list")
+    fun getUsers(): Page<User> = Page(listOf(User("bob")), 1)
+}
+
+@jakarta.inject.Singleton
+class MyBean
+''')
+
+        when:
+        var openApi = Utils.testReference
+
+        then:
+        var listOp = openApi.paths['/users/list'].get
+        var responseSchema = listOp.responses['200'].content['application/json'].schema
+
+        // 1. Correct naming for generics is Page_User_
+        responseSchema.$ref == '#/components/schemas/Page_User_'
+
+        // 2. Verify the specialized schema content
+        var pageUserSchema = openApi.components.schemas['Page_User_']
+        pageUserSchema != null
+
+        // Check that 'content' property items point to 'User' schema
+        pageUserSchema.properties['content'].items.$ref == '#/components/schemas/User'
+        pageUserSchema.properties['total'].type == 'integer'
+    }
+
+    void "test controller interpretation - multipart with file and metadata"() {
+        given:
+        buildBeanDefinition('test.FileController', '''
+package test
+
+import io.micronaut.http.MediaType
+import io.micronaut.http.annotation.*
+import io.micronaut.http.multipart.CompletedFileUpload
+
+@Controller("/files")
+class FileController {
+
+    @Post(value = "/upload", consumes = [MediaType.MULTIPART_FORM_DATA])
+    fun upload(
+        @Part file: CompletedFileUpload,
+        @Part description: String?
+    ): String = "ok"
+}
+
+@jakarta.inject.Singleton
+class MyBean
+''')
+
+        when:
+        var openApi = Utils.testReference
+
+        then:
+        var uploadOp = openApi.paths['/files/upload'].post
+        var content = uploadOp.requestBody.content['multipart/form-data']
+
+        // Check file part
+        var fileProp = content.schema.properties['file']
+        fileProp.type == 'string'
+        fileProp.format == 'binary'
+
+        // Check metadata part
+        content.schema.properties['description'].type == 'string'
+    }
+
+    void "test controller interpretation - dto validation"() {
+        given:
+        buildBeanDefinition('test.ValidationController', '''
+package test
+
+import io.micronaut.http.annotation.*
+import jakarta.validation.constraints.*
+import io.micronaut.core.annotation.Introspected
+
+@Introspected
+data class CreateUserRequest(
+    @field:Size(min = 3, max = 20)
+    val username: String,
+    
+    @field:Min(18)
+    val age: Int
+)
+
+@Controller("/validate")
+class ValidationController {
+
+    @Post("/user")
+    fun createUser(@Body request: CreateUserRequest): String = "ok"
+}
+
+@jakarta.inject.Singleton
+class MyBean
+''')
+
+        when:
+        var openApi = Utils.testReference
+
+        then:
+        var userSchema = openApi.components.schemas['CreateUserRequest']
+
+        userSchema.properties['username'].minLength == 3
+        userSchema.properties['username'].maxLength == 20
+        userSchema.properties['age'].minimum == 18
+    }
+
+    void "test controller interpretation - path inheritance and interface routes"() {
+        given:
+        buildBeanDefinition('test.ExtendedController', '''
+package test
+
+import io.micronaut.http.annotation.*
+
+interface BaseApi {
+    @Get("/version")
+    fun getVersion(): String
+}
+
+@Controller("/parent")
+open class ParentController {
+    @Post("/save")
+    open fun save(@Body data: String): String = data
+}
+
+@Controller("/child")
+class ChildController : ParentController(), BaseApi {
+    
+    override fun getVersion(): String = "1.0"
+
+    @Put("/update/{id}")
+    fun update(@PathVariable id: String): String = id
+}
+''')
+
+        when:
+        var openApi = Utils.testReference
+
+        then:
+        // 1. Из интерфейса: путь должен быть /child/version
+        openApi.paths['/child/version'].get != null
+
+        // 2. Из родительского класса: путь /child/save (Micronaut переопределяет базовый путь)
+        // Если ChildController имеет свой @Controller("/child"), родительский @Post должен быть под ним
+        openApi.paths['/child/save'].post != null
+
+        // 3. Собственный метод
+        openApi.paths['/child/update/{id}'].put.parameters.any { it.name == 'id' && it.in == 'path' }
+    }
+
+    void "test controller interpretation - response headers"() {
+        given:
+        buildBeanDefinition('test.HeaderController', '''
+package test
+
+import io.micronaut.http.annotation.*
+import io.micronaut.http.HttpResponse
+import io.swagger.v3.oas.annotations.headers.Header
+import io.swagger.v3.oas.annotations.responses.ApiResponse
+
+@Controller("/headers")
+class HeaderController {
+
+    @Get("/paged")
+    @ApiResponse(
+        responseCode = "200",
+        headers = [
+            Header(name = "X-Total-Count", description = "Total number of items", schema = io.swagger.v3.oas.annotations.media.Schema(type = "integer")),
+            Header(name = "X-Page-Size", description = "Items per page")
+        ]
+    )
+    fun getPagedData(): HttpResponse<List<String>> = HttpResponse.ok(listOf("a", "b"))
+}
+''')
+
+        when:
+        var openApi = Utils.testReference
+
+        then:
+        var response = openApi.paths['/headers/paged'].get.responses['200']
+
+        // Проверяем наличие и описание заголовков в объекте ответа
+        response.headers.containsKey('X-Total-Count')
+        response.headers['X-Total-Count'].description == "Total number of items"
+        response.headers['X-Total-Count'].schema.type == 'integer'
+
+        response.headers.containsKey('X-Page-Size')
+    }
+
+    void "test controller interpretation - complex multipart request"() {
+        given:
+        buildBeanDefinition('test.MultipartController', '''
+package test
+
+import io.micronaut.http.MediaType
+import io.micronaut.http.annotation.*
+import io.micronaut.http.multipart.CompletedFileUpload
+import io.micronaut.core.annotation.Introspected
+
+@Introspected
+class FileMeta(val description: String, val tags: List<String>)
+
+@Controller("/files")
+class MultipartController {
+
+    /**
+     * Testing mixed multipart: a file and a JSON metadata object.
+     */
+    @Post(value = "/upload", consumes = [MediaType.MULTIPART_FORM_DATA])
+    fun upload(
+        @Part file: CompletedFileUpload,
+        @Part metadata: FileMeta
+    ): String = "uploaded"
+
+    /**
+     * Testing multiple files upload.
+     */
+    @Post(value = "/batch", consumes = [MediaType.MULTIPART_FORM_DATA])
+    fun uploadBatch(
+        @Part files: List<CompletedFileUpload>
+    ): String = "batch uploaded"
+}
+
+@jakarta.inject.Singleton
+class MyBean
+''')
+
+        when:
+        var openApi = Utils.testReference
+
+        then:
+        // --- 1. Single File + Object ---
+        var uploadOp = openApi.paths['/files/upload'].post
+        var uploadSchema = uploadOp.requestBody.content['multipart/form-data'].schema
+
+        uploadSchema.properties['file'].type == 'string'
+        uploadSchema.properties['file'].format == 'binary'
+        uploadSchema.properties['metadata'].$ref == '#/components/schemas/FileMeta'
+
+        // --- 2. List of Files ---
+        var batchOp = openApi.paths['/files/batch'].post
+        var batchSchema = batchOp.requestBody.content['multipart/form-data'].schema
+
+        batchSchema.properties['files'].type == 'array'
+        batchSchema.properties['files'].items.type == 'string'
+        batchSchema.properties['files'].items.format == 'binary'
+    }
+
     @Ignore
     void "test controller interpretation - routes and complex parameters"() {
         given:
@@ -1526,5 +1791,165 @@ public class MyBean {}
         errorResponse != null
         errorResponse.description == "Server Error"
         errorResponse.content['application/json'].schema.$ref == '#/components/schemas/ErrorDto'
+    }
+
+    @Ignore
+    void "test controller interpretation - kotlin route annotation"() {
+        given:
+        buildBeanDefinition('test.RouteController', '''
+package test
+
+import io.micronaut.http.annotation.*
+import io.micronaut.http.HttpMethod
+
+@Controller("/routes")
+class RouteController {
+
+    // 1. Single method route
+    @Route(value = "/custom", method = [HttpMethod.PATCH])
+    fun customPatch(): String = "ok"
+
+    // 2. Multi-method route (Should create POST and PUT operations)
+    @Route(value = "/multi", method = [HttpMethod.POST, HttpMethod.PUT])
+    fun multiMethod(@Body data: String): String = data
+
+    // 3. Default Route (defaults to GET)
+    @Route("/default")
+    fun defaultGet(): String = "default"
+}
+
+@jakarta.inject.Singleton
+class MyBean
+''')
+
+        when:
+        var openApi = Utils.testReference
+
+        then:
+        // --- 1. Verify Patch ---
+        openApi.paths['/routes/custom'].patch != null
+
+        // --- 2. Verify Multi-Method ---
+        var multiPath = openApi.paths['/routes/multi']
+        multiPath.post != null
+        multiPath.put != null
+        // Both operations should point to the same schema for body
+        multiPath.post.requestBody.content['application/json'].schema.type == 'string'
+
+        // --- 3. Verify Default GET ---
+        openApi.paths['/routes/default'].get != null
+    }
+
+    @Ignore
+    void "test controller interpretation - kotlin matrix variables"() {
+        given:
+        buildBeanDefinition('test.MatrixController', '''
+package test
+
+import io.micronaut.http.annotation.*
+
+@Controller("/matrix")
+class MatrixController {
+
+    // URL: /matrix/coords;x=10;y=20
+    @Get("/coords{;x,y}")
+    fun getCoords(
+        @MatrixVariable x: Int, 
+        @MatrixVariable y: Int?
+    ): String = "$x:$y"
+
+    // URL: /matrix/area/rect;w=5;h=10
+    @Get("/area/{name}{;w,h}")
+    fun getArea(
+        @PathVariable name: String,
+        @MatrixVariable w: Int,
+        @MatrixVariable h: Int
+    ): String = "$name:${w * h}"
+}
+
+@jakarta.inject.Singleton
+class MyBean
+''')
+
+        when:
+        var openApi = Utils.testReference
+
+        then:
+        // --- 1. Verify Matrix Style ---
+        var coordsOp = openApi.paths['/matrix/coords'].get
+        var xParam = coordsOp.parameters.find { it.name == 'x' }
+
+        xParam != null
+        xParam.in == 'path'
+        // Matrix variables MUST have style: matrix in OpenAPI
+        xParam.style == Parameter.StyleEnum.MATRIX
+
+        // --- 2. Verify Path + Matrix ---
+        var areaOp = openApi.paths['/matrix/area/{name}'].get
+        areaOp.parameters.any { it.name == 'name' && it.in == 'path' && it.style == null }
+        areaOp.parameters.any { it.name == 'w' && it.in == 'path' && it.style?.toString() == 'matrix' }
+    }
+
+    @Ignore
+    void "test controller interpretation - error routes mapping"() {
+        given:
+        buildBeanDefinition('test.ErrorController', '''
+package test
+
+import io.micronaut.http.annotation.*
+import io.micronaut.http.HttpResponse
+import io.micronaut.http.HttpStatus
+import io.micronaut.core.annotation.Introspected
+
+@Introspected
+class ErrorDetail(val message: String, val code: Int)
+
+@Controller("/errors")
+class ErrorController {
+
+    @Get("/data/{id}")
+    fun getData(id: String): String = "data: $id"
+
+    /**
+     * Local error handler for 404 status.
+     * Should be added to all operations in this controller.
+     */
+    @Error(status = HttpStatus.NOT_FOUND)
+    fun onNotFound(): HttpResponse<String> = 
+        HttpResponse.notFound("Custom not found message")
+
+    /**
+     * Local error handler for specific exception.
+     * Should be mapped to 400 Bad Request.
+     */
+    @Error(exception = IllegalArgumentException::class)
+    fun onBadRequest(ex: IllegalArgumentException): HttpResponse<ErrorDetail> = 
+        HttpResponse.badRequest(ErrorDetail(ex.message ?: "Invalid request", 400))
+}
+
+@jakarta.inject.Singleton
+class MyBean
+''')
+
+        when:
+        var openApi = Utils.testReference
+
+        then:
+        var path = openApi.paths['/errors/data/{id}'].get
+        path != null
+
+        // 1. Verify 404 response from @Error(status = HttpStatus.NOT_FOUND)
+        path.responses.containsKey('404')
+        var response404 = path.responses['404'].content['application/json'].schema
+        response404.type == 'string'
+
+        // 2. Verify 400 response from @Error(exception = IllegalArgumentException::class)
+        // Processor should map IllegalArgumentException to "400"
+        path.responses.containsKey('400')
+        var response400 = path.responses['400'].content['application/json'].schema
+        response400.$ref == '#/components/schemas/ErrorDetail'
+
+        // 3. Ensure the original 200 response is still there
+        path.responses.containsKey('200')
     }
 }
