@@ -114,11 +114,11 @@ public final class ProtoUtils {
         var typeName = type.getName();
         switch (typeName) {
             case "com.google.protobuf.ByteString" -> {
-                return PrimitiveType.BYTE.createProperty(openapi31);
+                return PrimitiveType.BINARY.createProperty(openapi31);
             }
             // wrapper types
             case "com.google.protobuf.BytesValueOrBuilder" -> {
-                return setNullable(PrimitiveType.BYTE.createProperty(openapi31));
+                return setNullable(PrimitiveType.BINARY.createProperty(openapi31));
             }
             case "com.google.protobuf.DoubleValueOrBuilder" -> {
                 return setNullable(PrimitiveType.DOUBLE.createProperty(openapi31));

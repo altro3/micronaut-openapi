@@ -1243,6 +1243,65 @@ public class MyBean {}
         fileOp.parameters.find { it.name == 'path' }.required == true
     }
 
+    void "test controller interpretation - security and binary streams"() {
+        given:
+        buildBeanDefinition('test.SecureController', '''
+package test
+
+import io.micronaut.http.annotation.*
+import io.micronaut.http.MediaType
+import io.micronaut.security.authentication.Authentication
+import io.swagger.v3.oas.annotations.security.SecurityRequirement
+import java.io.InputStream
+
+@SecurityRequirement(name = "JWT")
+@Controller("/secure")
+class SecureController {
+
+    // 1. System parameter 'auth' must be ignored automatically
+    @Get("/me")
+    fun getMe(auth: Authentication): String = "Hello ${auth.name}"
+
+    // 2. Binary download - should be application/octet-stream + format: binary
+    @Get(value = "/download", produces = [MediaType.APPLICATION_OCTET_STREAM])
+    fun download(): InputStream = TODO()
+
+    // 3. Method-level override for security
+    @Post("/admin/clear")
+    @SecurityRequirement(name = "AdminToken")
+    fun clearCache() = "done"
+}
+
+@jakarta.inject.Singleton
+public class MyBean {}
+''')
+
+        when:
+        var openApi = Utils.testReference
+
+        then:
+        // --- 1. Verify Security Inheritance ---
+        var meOp = openApi.paths['/secure/me'].get
+        meOp.security != null
+        meOp.security.any { it.containsKey('JWT') }
+
+        // --- 2. Verify System Parameter Exclusion ---
+        // 'auth' must not be in the parameters list
+        meOp.parameters == null || !meOp.parameters.any { it.name == 'auth' }
+
+        // --- 3. Verify Binary Stream Interpretation ---
+        var downloadOp = openApi.paths['/secure/download'].get
+        var responseContent = downloadOp.responses['200'].content['application/octet-stream']
+        responseContent.schema.type == 'string'
+        responseContent.schema.format == 'binary'
+
+        // --- 4. Verify Security Override ---
+        var adminOp = openApi.paths['/secure/admin/clear'].post
+        adminOp.security.any { it.containsKey('AdminToken') }
+        // Method-level should replace class-level in most cases
+        !adminOp.security.any { it.containsKey('JWT') }
+    }
+
     @Ignore
     void "test controller interpretation - routes and complex parameters"() {
         given:
@@ -1320,67 +1379,7 @@ public class MyBean {}
         headerParam.schema.type == 'object'
     }
 
-    @Ignore
-    void "test controller interpretation - security and binary streams"() {
-        given:
-        buildBeanDefinition('test.SecureController', '''
-package test
-
-import io.micronaut.http.annotation.*
-import io.micronaut.http.MediaType
-import io.micronaut.security.authentication.Authentication
-import io.swagger.v3.oas.annotations.security.SecurityRequirement
-import java.io.InputStream
-
-@SecurityRequirement(name = "JWT")
-@Controller("/secure")
-class SecureController {
-
-    // 1. System parameter 'auth' must be ignored automatically
-    @Get("/me")
-    fun getMe(auth: Authentication): String = "Hello ${auth.name}"
-
-    // 2. Binary download - should be application/octet-stream + format: binary
-    @Get(value = "/download", produces = [MediaType.APPLICATION_OCTET_STREAM])
-    fun download(): InputStream = TODO()
-
-    // 3. Method-level override for security
-    @Post("/admin/clear")
-    @SecurityRequirement(name = "AdminToken")
-    fun clearCache() = "done"
-}
-
-@jakarta.inject.Singleton
-public class MyBean {}
-''')
-
-        when:
-        var openApi = Utils.testReference
-
-        then:
-        // --- 1. Verify Security Inheritance ---
-        var meOp = openApi.paths['/secure/me'].get
-        meOp.security != null
-        meOp.security.any { it.containsKey('JWT') }
-
-        // --- 2. Verify System Parameter Exclusion ---
-        // 'auth' must not be in the parameters list
-        meOp.parameters == null || !meOp.parameters.any { it.name == 'auth' }
-
-        // --- 3. Verify Binary Stream Interpretation ---
-        var downloadOp = openApi.paths['/secure/download'].get
-        var responseContent = downloadOp.responses['200'].content['application/octet-stream']
-        responseContent.schema.type == 'string'
-        responseContent.schema.format == 'binary'
-
-        // --- 4. Verify Security Override ---
-        var adminOp = openApi.paths['/secure/admin/clear'].post
-        adminOp.security.any { it.containsKey('AdminToken') }
-        // Method-level should replace class-level in most cases
-        !adminOp.security.any { it.containsKey('JWT') }
-    }
-
-    @Ignore
+    //@Ignore
     void "test controller interpretation - raw bodies and media types"() {
         given:
         buildBeanDefinition('test.RawBodyController', '''
