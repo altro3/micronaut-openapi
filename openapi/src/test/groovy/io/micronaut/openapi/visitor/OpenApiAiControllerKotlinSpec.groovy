@@ -1302,6 +1302,72 @@ public class MyBean {}
         !adminOp.security.any { it.containsKey('JWT') }
     }
 
+    void "test controller interpretation - raw bodies and media types"() {
+        given:
+        buildBeanDefinition('test.RawBodyController', '''
+package test
+
+import io.micronaut.http.MediaType
+import io.micronaut.http.annotation.*
+import io.swagger.v3.oas.annotations.media.Schema
+
+@Controller("/raw")
+class RawBodyController {
+
+    // 1. Plain text body
+    @Post(value = "/text", consumes = [MediaType.TEXT_PLAIN])
+    fun sendText(@Body text: String): String = text
+
+    // 2. Binary body (Byte Array)
+    @Post(value = "/image", consumes = [MediaType.IMAGE_PNG])
+    fun uploadImage(@Body data: ByteArray): String = "ok"
+
+    // 3. Dynamic JSON (Map)
+    @Post(value = "/json", consumes = [MediaType.APPLICATION_JSON])
+    fun sendJson(@Body data: Map<String, Any>): Map<String, Any> = data
+
+    // 4. Custom schema override for raw string
+    @Post(value = "/hex", consumes = [MediaType.TEXT_PLAIN])
+    fun sendHex(
+        @Body @Schema(description = "Hexadecimal string", pattern = "^[0-9a-fA-F]+\$") 
+        hex: String
+    ): String = hex
+}
+
+@jakarta.inject.Singleton
+public class MyBean {}
+''')
+
+        when:
+        var openApi = Utils.testReference
+
+        then:
+        // --- 1. Verify Text Body ---
+        var textOp = openApi.paths['/raw/text'].post
+        var textRequest = textOp.requestBody.content['text/plain'].schema
+        textRequest.type == 'string'
+        !textRequest.format // Should not have binary format
+
+        // --- 2. Verify Binary Body (ByteArray) ---
+        var imageOp = openApi.paths['/raw/image'].post
+        var imageRequest = imageOp.requestBody.content['image/png'].schema
+        imageRequest.type == 'string'
+        imageRequest.format == 'binary'
+
+        // --- 3. Verify Dynamic JSON (Map) ---
+        var jsonOp = openApi.paths['/raw/json'].post
+        var jsonRequest = jsonOp.requestBody.content['application/json'].schema
+        jsonRequest.type == 'object'
+        // Map<String, Any> should result in free-form additionalProperties
+        jsonRequest.additionalProperties != null
+
+        // --- 4. Verify Schema Override on Raw Type ---
+        var hexOp = openApi.paths['/raw/hex'].post
+        var hexRequest = hexOp.requestBody.content['text/plain'].schema
+        hexRequest.description == "Hexadecimal string"
+        hexRequest.pattern == "^[0-9a-fA-F]+\$"
+    }
+
     @Ignore
     void "test controller interpretation - routes and complex parameters"() {
         given:
@@ -1377,73 +1443,6 @@ public class MyBean {}
         headerParam.name == 'headers'
         headerParam.explode == true
         headerParam.schema.type == 'object'
-    }
-
-    //@Ignore
-    void "test controller interpretation - raw bodies and media types"() {
-        given:
-        buildBeanDefinition('test.RawBodyController', '''
-package test
-
-import io.micronaut.http.MediaType
-import io.micronaut.http.annotation.*
-import io.swagger.v3.oas.annotations.media.Schema
-
-@Controller("/raw")
-class RawBodyController {
-
-    // 1. Plain text body
-    @Post(value = "/text", consumes = [MediaType.TEXT_PLAIN])
-    fun sendText(@Body text: String): String = text
-
-    // 2. Binary body (Byte Array)
-    @Post(value = "/image", consumes = [MediaType.IMAGE_PNG])
-    fun uploadImage(@Body data: ByteArray): String = "ok"
-
-    // 3. Dynamic JSON (Map)
-    @Post(value = "/json", consumes = [MediaType.APPLICATION_JSON])
-    fun sendJson(@Body data: Map<String, Any>): Map<String, Any> = data
-
-    // 4. Custom schema override for raw string
-    @Post(value = "/hex", consumes = [MediaType.TEXT_PLAIN])
-    fun sendHex(
-        @Body @Schema(description = "Hexadecimal string", pattern = "^[0-9a-fA-F]+\$") 
-        hex: String
-    ): String = hex
-}
-
-@jakarta.inject.Singleton
-public class MyBean {}
-''')
-
-        when:
-        var openApi = Utils.testReference
-
-        then:
-        // --- 1. Verify Text Body ---
-        var textOp = openApi.paths['/raw/text'].post
-        var textRequest = textOp.requestBody.content['text/plain'].schema
-        textRequest.type == 'string'
-        !textRequest.format // Should not have binary format
-
-        // --- 2. Verify Binary Body (ByteArray) ---
-        var imageOp = openApi.paths['/raw/image'].post
-        var imageRequest = imageOp.requestBody.content['image/png'].schema
-        imageRequest.type == 'string'
-        imageRequest.format == 'binary'
-
-        // --- 3. Verify Dynamic JSON (Map) ---
-        var jsonOp = openApi.paths['/raw/json'].post
-        var jsonRequest = jsonOp.requestBody.content['application/json'].schema
-        jsonRequest.type == 'object'
-        // Map<String, Any> should result in free-form additionalProperties
-        jsonRequest.additionalProperties != null
-
-        // --- 4. Verify Schema Override on Raw Type ---
-        var hexOp = openApi.paths['/raw/hex'].post
-        var hexRequest = hexOp.requestBody.content['text/plain'].schema
-        hexRequest.description == "Hexadecimal string"
-        hexRequest.pattern == "^[0-9a-fA-F]+\$"
     }
 
     @Ignore
