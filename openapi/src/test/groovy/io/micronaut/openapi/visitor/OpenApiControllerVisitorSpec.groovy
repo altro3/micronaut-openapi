@@ -3246,4 +3246,62 @@ class MyBean {}
         openApi.components.schemas.MyDto.properties.payload2.type == "string"
         !openApi.components.schemas.MyDto.properties.payload2.format
     }
+
+    void "test controller interpretation - raw bodies and media types"() {
+        given:
+        buildBeanDefinition('test.RawBodyController', '''
+package test;
+
+import io.micronaut.http.MediaType;
+import io.micronaut.http.annotation.*;
+import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.Map;
+
+@Controller("/raw")
+class RawBodyController {
+
+    @Post(value = "/text", consumes = MediaType.TEXT_PLAIN)
+    public String sendText(@Body String text) {
+        return text;
+    }
+
+    @Post(value = "/image", consumes = MediaType.IMAGE_PNG)
+    public String uploadImage(@Body byte[] data) {
+        return "ok";
+    }
+
+    @Post(value = "/json", consumes = MediaType.APPLICATION_JSON)
+    public Map<String, Object> sendJson(@Body Map<String, Object> data) {
+        return data;
+    }
+}
+
+@jakarta.inject.Singleton
+class MyBean {}
+''')
+
+        when:
+        var openApi = Utils.testReference
+
+        then:
+        // --- 1. Verify Text Body ---
+        var textOp = openApi.paths['/raw/text'].post
+        var textSchema = textOp.requestBody.content['text/plain'].schema
+        textSchema.type == 'string'
+        textSchema.format == null
+
+        // --- 2. Verify Binary Body (byte[]) ---
+        var imageOp = openApi.paths['/raw/image'].post
+        var imageSchema = imageOp.requestBody.content['image/png'].schema
+        // byte[] must be translated to type: string, format: binary
+        imageSchema.type == 'string'
+        imageSchema.format == 'binary'
+
+        // --- 3. Verify Dynamic JSON (Map) ---
+        var jsonOp = openApi.paths['/raw/json'].post
+        var jsonSchema = jsonOp.requestBody.content['application/json'].schema
+        jsonSchema.type == 'object'
+        // Map<String, Object> should result in additionalProperties (free-form object)
+        jsonSchema.additionalProperties != null
+    }
 }
