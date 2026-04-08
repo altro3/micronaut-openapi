@@ -1952,4 +1952,264 @@ class MyBean
         // 3. Ensure the original 200 response is still there
         path.responses.containsKey('200')
     }
+
+    void "test controller interpretation - validation, multipart and tags"() {
+        given:
+        buildBeanDefinition('test.MediaController', '''
+package test
+
+import io.micronaut.http.annotation.*
+import io.micronaut.http.MediaType
+import io.swagger.v3.oas.annotations.tags.Tag
+import jakarta.validation.constraints.*
+import io.micronaut.http.multipart.CompletedFileUpload
+
+@Tag(name = "Media Operations", description = "Endpoints for file management")
+@Controller("/media")
+class MediaController {
+
+    // 1. Validation constraints in Query and Path
+    @Get("/download/{fileId}")
+    fun download(
+        @PathVariable @Size(min = 5, max = 10) fileId: String,
+        @QueryValue @Min(1) @Max(100) priority: Int = 1
+    ): String = "file"
+
+    // 2. Multipart File Upload
+    @Post(value = "/upload", consumes = [MediaType.MULTIPART_FORM_DATA])
+    fun upload(
+        @Part("file") file: CompletedFileUpload,
+        @Part("metadata") @NotBlank description: String
+    ): String = "uploaded"
+}
+
+@jakarta.inject.Singleton
+public class MyBean {}
+''')
+
+        when:
+        var openApi = Utils.testReference
+
+        then:
+        // --- 1. Verify Tags at Controller Level ---
+        var downloadOp = openApi.paths['/media/download/{fileId}'].get
+        downloadOp.tags.contains("Media Operations")
+        openApi.tags.any { it.name == "Media Operations" }
+
+        // --- 2. Verify Bean Validation Constraints ---
+        var fileIdParam = downloadOp.parameters.find { it.name == 'fileId' }
+        fileIdParam.schema.minLength == 5
+        fileIdParam.schema.maxLength == 10
+
+        var priorityParam = downloadOp.parameters.find { it.name == 'priority' }
+        priorityParam.schema.minimum == 1
+        priorityParam.schema.maximum == 100
+
+        // --- 3. Verify Multipart Request Body ---
+        var uploadOp = openApi.paths['/media/upload'].post
+        var content = uploadOp.requestBody.content['multipart/form-data']
+        content != null
+
+        // Проверяем схему свойств multipart
+        var props = content.schema.properties
+        props.containsKey('file')
+        props['file'].type == 'string'
+        props['file'].format == 'binary' // CompletedFileUpload должен превратиться в binary
+
+        props.containsKey('metadata')
+        props['metadata'].type == 'string'
+        // @NotBlank помечает поле как обязательное в схеме (зависит от настроек, но обычно в required)
+        content.schema.required.contains('metadata')
+    }
+
+    void "test controller interpretation - complex inheritance and generic resolution"() {
+        given:
+        buildBeanDefinition('test.OpenApiProductController', '''
+package test
+
+import io.micronaut.http.annotation.*
+import java.util.UUID
+
+// 1. Top-level interface with generic contracts
+interface CrudOperations<T, ID> {
+    @Get("/{id}")
+    fun getById(id: ID): T
+    
+    @Delete("/{id}")
+    fun delete(id: ID)
+}
+
+// 2. Intermediate abstract class fixing part of the generics
+abstract class AbstractProductController<T : Nameable> : CrudOperations<T, UUID> {
+    
+    @Post
+    open fun save(@Body entity: T): T = entity
+
+    // 'id' is Path, 'name' has no annotation -> becomes part of Body in PATCH
+    @Patch("/{id}")
+    open fun updateName(@PathVariable id: UUID, name: String): T = TODO()
+}
+
+interface Nameable { val name: String }
+data class Product(val id: UUID, override val name: String, val price: Double) : Nameable
+
+// 3. Final controller implementation
+@Controller("/api/products")
+class OpenApiProductController : AbstractProductController<Product>() {
+
+    // Overriding to check if annotations from interface are inherited
+    override fun getById(id: UUID): Product = TODO()
+    
+    override fun delete(id: UUID) { }
+
+    // GET method: simple types without annotations default to Query parameters
+    @Get("/by-price")
+    fun getByPrice(maxPrice: Double, category: String?): List<Product> = emptyList()
+}
+
+@jakarta.inject.Singleton
+public class MyBean {}
+''')
+
+        when:
+        var openApi = Utils.testReference
+
+        then:
+        // --- 1. Verify Generic Resolution T -> Product ---
+        var postOp = openApi.paths['/api/products'].post
+        postOp.requestBody.content['application/json'].schema.$ref == '#/components/schemas/Product'
+
+        // --- 2. Verify ID inheritance: ID -> UUID ---
+        var getByIdOp = openApi.paths['/api/products/{id}'].get
+        var idParam = getByIdOp.parameters.find { it.name == 'id' }
+        idParam.in == 'path'
+        idParam.schema.format == 'uuid'
+
+        // --- 3. Verify PATCH method (Implicit Body for 'name') ---
+        var patchOp = openApi.paths['/api/products/{id}'].patch
+        // 'name' must NOT be in parameters list
+        !patchOp.parameters.any { it.name == 'name' }
+
+        // 'name' must be a property in the requestBody schema
+        var patchBody = patchOp.requestBody.content['application/json'].schema
+        patchBody.properties.containsKey('name')
+        patchBody.properties['name'].type == 'string'
+        // Kotlin String (non-nullable) -> required: true
+        patchBody.required.contains('name')
+
+        // --- 4. Verify Void return type (Delete) ---
+        var deleteOp = openApi.paths['/api/products/{id}'].delete
+        deleteOp.responses.containsKey('200') || deleteOp.responses.containsKey('204')
+
+        // --- 5. Verify Implicit Query params in GET ---
+        var priceOp = openApi.paths['/api/products/by-price'].get
+
+        // maxPrice: Double (non-nullable) -> required: true in Query
+        var maxPriceParam = priceOp.parameters.find { it.name == 'maxPrice' }
+        maxPriceParam.in == 'query'
+        maxPriceParam.required == true
+        maxPriceParam.schema.format == 'double'
+
+        // category: String? (nullable) -> required: false/null in Query
+        var categoryParam = priceOp.parameters.find { it.name == 'category' }
+        categoryParam.in == 'query'
+        categoryParam.required == null || categoryParam.required == false
+    }
+
+    @Ignore
+    void "test controller interpretation - mixed content types and complex signatures"() {
+        given:
+        buildBeanDefinition('test.MediaManagementController', '''
+package test
+
+import io.micronaut.http.*
+import io.micronaut.http.annotation.*
+import io.micronaut.http.server.types.files.StreamedFile
+import java.util.UUID
+import java.security.Principal
+
+@Controller("/media")
+class MediaManagementController {
+
+    // 1. JSON POST: Verify HttpResponse unwrapping and default 200 status
+    @Post(value = "/create", processes = [MediaType.APPLICATION_JSON])
+    fun createItem(@Body data: Map<String, Any>): HttpResponse<SimpleResponse> = TODO()
+
+    // 2. Multipart: metadata and isPublic should become form parts.
+    // Principal and HttpRequest MUST be ignored by the generator.
+    @Post(value = "/upload/{folder}", consumes = [MediaType.MULTIPART_FORM_DATA])
+    fun uploadFile(
+        @PathVariable folder: String,
+        @Header("X-Upload-Token") token: String,
+        metadata: String,
+        isPublic: Boolean,
+        principal: Principal,
+        request: HttpRequest<*>
+    ): StreamedFile = TODO()
+
+    // 3. Form-Url-Encoded: title goes to Body, apiKey to Query.
+    // HttpHeaders object must be ignored as a parameter.
+    @Put(value = "/update-info", consumes = [MediaType.APPLICATION_FORM_URLENCODED])
+    fun updateInfo(
+        @QueryValue apiKey: UUID,
+        @Header("X-Trace-Id") traceId: String?,
+        title: String,
+        headers: HttpHeaders
+    ): String = "updated"
+
+    // 4. Explicit Plain Text response overriding default JSON
+    @Get(value = "/status", produces = [MediaType.TEXT_PLAIN])
+    fun getStatus(): String = "RUNNING"
+}
+
+@io.micronaut.core.annotation.Introspected
+data class SimpleResponse(val status: String)
+
+@jakarta.inject.Singleton
+public class MyBean {}
+''')
+
+        when:
+        var openApi = Utils.testReference
+
+        then:
+        // --- 1. JSON & Response Unwrapping ---
+        var createOp = openApi.paths['/media/create'].post
+        createOp.responses.containsKey('200')
+        createOp.responses['200'].content['application/json'].schema.$ref == '#/components/schemas/SimpleResponse'
+
+        // --- 2. Multipart & System Types Filtering ---
+        var uploadOp = openApi.paths['/media/upload/{folder}'].post
+        var multipartContent = uploadOp.requestBody.content['multipart/form-data']
+        var multiProps = multipartContent.schema.properties
+
+        // Implicit body parts
+        multiProps.containsKey('metadata')
+        multiProps.containsKey('isPublic')
+
+        // CRITICAL: System types (Principal, HttpRequest) must be filtered out
+        !uploadOp.parameters.any { it.name == 'principal' || it.name == 'request' }
+        !multiProps.containsKey('principal')
+        !multiProps.containsKey('request')
+
+        // Verify StreamedFile mapping (standard Micronaut OpenAPI behavior)
+        var uploadResponse = uploadOp.responses['200'].content['application/octet-stream']
+        uploadResponse.schema.type == 'string'
+        uploadResponse.schema.format == 'binary'
+
+        // --- 3. Form-Url-Encoded & Parameter Filtering ---
+        var updateOp = openApi.paths['/media/update-info'].put
+        var formContent = updateOp.requestBody.content['application/form-urlencoded']
+
+        // title is in Body, apiKey is in Query
+        formContent.schema.properties.containsKey('title')
+        updateOp.parameters.find { it.name == 'apiKey' }.in == 'query'
+
+        // HttpHeaders must be ignored
+        !updateOp.parameters.any { it.name == 'headers' }
+
+        // --- 4. Plain Text Response ---
+        var statusOp = openApi.paths['/media/status'].get
+        statusOp.responses['200'].content.containsKey('text/plain')
+    }
 }
